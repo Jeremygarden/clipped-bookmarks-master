@@ -1,0 +1,13 @@
+{
+  "active": true,
+  "iteration": 7,
+  "minIterations": 1,
+  "maxIterations": 10,
+  "completionPromise": "COMPLETE",
+  "tasksMode": false,
+  "taskPromise": "READY_FOR_NEXT_TASK",
+  "prompt": "Review clipped-bookmarks-master branch feature/wechat-article-support for WeChat Video Channels support. Focus only on WeChat branch. Check extractor/schema/docs/tests for completeness, no edits unless necessary. 完成后输出: COMPLETE",
+  "startedAt": "2026-08-20T17:54:41.570Z",
+  "model": "github-copilot/claude-sonnet-4.6",
+  "agent": "openclaw"
+}
