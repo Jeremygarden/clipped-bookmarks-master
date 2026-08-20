@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 import json
 
-from clipped_bookmarks.extractors.zhihu import extract_zhihu, parse_count
+from clipped_bookmarks.extractors.zhihu import extract_zhihu, is_zhihu_url, parse_count
+
+
+def test_is_zhihu_url_is_host_strict():
+    assert is_zhihu_url("https://www.zhihu.com/question/1") is True
+    assert is_zhihu_url("https://zhuanlan.zhihu.com/p/1") is True
+    assert is_zhihu_url("https://evil.example/?next=zhihu.com/question/1") is False
 
 
 def test_parse_count_zhihu_units():

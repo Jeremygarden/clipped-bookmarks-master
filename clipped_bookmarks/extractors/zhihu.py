@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+from urllib.parse import urlparse
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -43,6 +44,16 @@ YANXUAN_RE = re.compile(r"zhihu\.com/(?:market/(?:paid_)?column|xen)/(\d+)")
 PEOPLE_RE = re.compile(r"zhihu\.com/people/([^/?#]+)")
 COLLECTION_RE = re.compile(r"zhihu\.com/collection/(\d+)")
 QUESTION_RE = re.compile(r"zhihu\.com/question/(\d+)(?:/answer/(\d+))?")
+ZHihu_HOSTS = ("zhihu.com", "www.zhihu.com", "zhuanlan.zhihu.com")
+
+
+def is_zhihu_url(url: str) -> bool:
+    """Return True only for supported Zhihu hosts, avoiding loose substring matches."""
+    try:
+        host = urlparse(url).netloc.lower().split(":", 1)[0]
+    except Exception:
+        return False
+    return host in ZHihu_HOSTS
 
 
 def clean_text(value: str) -> str:
