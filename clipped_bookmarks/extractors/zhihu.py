@@ -24,12 +24,24 @@ LOGIN_WALL_PATTERNS = (
     "unhuman",
     "captcha",
     "403 Forbidden",
+    "页面不存在",
+    "内容不存在",
+    "你似乎来到了没有知识存在的荒原",
+)
+
+NOT_FOUND_PATTERNS = (
+    "页面不存在",
+    "内容不存在",
+    "你似乎来到了没有知识存在的荒原",
+    "404",
 )
 
 ARTICLE_RE = re.compile(r"(?:zhihu\.com|zhuanlan\.zhihu\.com)/p/(\d+)")
 ZVIDEO_RE = re.compile(r"zhihu\.com/zvideo/(\d+)")
 PIN_RE = re.compile(r"zhihu\.com/pin/(\d+)")
 YANXUAN_RE = re.compile(r"zhihu\.com/(?:market/(?:paid_)?column|xen)/(\d+)")
+PEOPLE_RE = re.compile(r"zhihu\.com/people/([^/?#]+)")
+COLLECTION_RE = re.compile(r"zhihu\.com/collection/(\d+)")
 QUESTION_RE = re.compile(r"zhihu\.com/question/(\d+)(?:/answer/(\d+))?")
 
 
@@ -70,6 +82,10 @@ def detect_content_type(url: str, soup: BeautifulSoup) -> str:
         return "pin"
     if YANXUAN_RE.search(url):
         return "yanxuan"
+    if COLLECTION_RE.search(url):
+        return "collection"
+    if PEOPLE_RE.search(url):
+        return "people"
     if ARTICLE_RE.search(url):
         return "article"
     question_match = QUESTION_RE.search(url)
@@ -77,6 +93,10 @@ def detect_content_type(url: str, soup: BeautifulSoup) -> str:
         return "answer" if question_match.group(2) else "question"
     if soup.select_one(".Post-RichTextContainer, article"):
         return "article"
+    if soup.select_one(".CollectionDetailPage, .CollectionPage"):
+        return "collection"
+    if soup.select_one(".ProfileHeader, .Profile-main"):
+        return "people"
     if soup.select_one(".QuestionHeader, .QuestionPage"):
         return "question"
     return "answer" if soup.select_one(".AnswerCard, .AnswerItem") else "unknown"
@@ -84,12 +104,18 @@ def detect_content_type(url: str, soup: BeautifulSoup) -> str:
 
 def detect_login_wall(html: str, soup: BeautifulSoup) -> Dict[str, Any]:
     body_text = soup.get_text(" ", strip=True)[:4000]
-    markers = [p for p in LOGIN_WALL_PATTERNS if p.lower() in (html + body_text).lower()]
+    haystack = (html + body_text).lower()
+    markers = [p for p in LOGIN_WALL_PATTERNS if p.lower() in haystack]
+    not_found_markers = [p for p in NOT_FOUND_PATTERNS if p.lower() in haystack]
     has_modal = bool(soup.select_one(".SignFlow, .Modal, .Captcha, .Unhuman"))
+    anti_bot = any(p.lower() in haystack for p in ("安全验证", "请完成验证", "unhuman", "captcha"))
+    login_markers = [m for m in markers if m not in not_found_markers]
     return {
-        "requires_login": bool(markers or has_modal),
-        "anti_bot": any(p.lower() in (html + body_text).lower() for p in ("安全验证", "请完成验证", "unhuman", "captcha")),
+        "requires_login": bool(login_markers or has_modal or anti_bot),
+        "anti_bot": anti_bot,
+        "not_found": bool(not_found_markers),
         "markers": sorted(set(markers)),
+        "not_found_markers": sorted(set(not_found_markers)),
     }
 
 
@@ -318,8 +344,10 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
     zvideo_match = ZVIDEO_RE.search(url or "")
     pin_match = PIN_RE.search(url or "")
     yanxuan_match = YANXUAN_RE.search(url or "")
+    people_match = PEOPLE_RE.search(url or "")
+    collection_match = COLLECTION_RE.search(url or "")
     has_comment_dom = bool(soup.select_one(".CommentItem, [class*='CommentItem']"))
-    dynamic_fallback = not bool(deduped) and not wall["requires_login"]
+    dynamic_fallback = not bool(deduped) and not wall["requires_login"] and not wall["not_found"]
     if has_comment_dom:
         comments_fallback = "dom"
     elif wall["requires_login"] or wall["anti_bot"]:
@@ -335,15 +363,19 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
         "video_id": zvideo_match.group(1) if zvideo_match else (primary.get("id", "") if content_type == "video" else ""),
         "pin_id": pin_match.group(1) if pin_match else (primary.get("id", "") if content_type == "pin" else ""),
         "yanxuan_id": yanxuan_match.group(1) if yanxuan_match else (primary.get("id", "") if content_type == "yanxuan" else ""),
+        "people_token": people_match.group(1) if people_match else "",
+        "collection_id": collection_match.group(1) if collection_match else (primary.get("id", "") if content_type == "collection" else ""),
         "upvote_count": primary.get("upvote_count"),
         "items": deduped,
         "requires_login": wall["requires_login"],
         "anti_bot": wall["anti_bot"],
         "login_wall_markers": wall["markers"],
+        "not_found": wall["not_found"],
+        "not_found_markers": wall["not_found_markers"],
         "dynamic_fallback": dynamic_fallback,
         "comments_fallback": comments_fallback,
         "fallbacks": {
-            "content": "json_or_dom" if deduped else ("login_required" if wall["requires_login"] else "dynamic_required"),
+            "content": "json_or_dom" if deduped else ("not_found" if wall["not_found"] else ("login_required" if wall["requires_login"] else "dynamic_required")),
             "comments": comments_fallback,
         },
         "raw_data": {
@@ -355,9 +387,12 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
             "video_id": zvideo_match.group(1) if zvideo_match else (primary.get("id", "") if content_type == "video" else ""),
             "pin_id": pin_match.group(1) if pin_match else (primary.get("id", "") if content_type == "pin" else ""),
             "yanxuan_id": yanxuan_match.group(1) if yanxuan_match else (primary.get("id", "") if content_type == "yanxuan" else ""),
+            "people_token": people_match.group(1) if people_match else "",
+            "collection_id": collection_match.group(1) if collection_match else (primary.get("id", "") if content_type == "collection" else ""),
             "item_count": len(deduped),
             "requires_login": wall["requires_login"],
             "anti_bot": wall["anti_bot"],
+            "not_found": wall["not_found"],
             "dynamic_fallback": dynamic_fallback,
             "comments_fallback": comments_fallback,
         },

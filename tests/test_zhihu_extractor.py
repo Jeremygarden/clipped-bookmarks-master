@@ -151,3 +151,25 @@ def test_zhuanlan_article_url_detected_as_article():
     assert data["extra"]["content_type"] == "article"
     assert data["extra"]["article_id"] == "222"
     assert data["raw_data"]["article_id"] == "222"
+
+
+def test_people_and_collection_urls_report_ids_without_fake_content():
+    people = extract_zhihu('<title>用户页 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/people/alice")
+    assert people["extra"]["content_type"] == "people"
+    assert people["extra"]["people_token"] == "alice"
+    assert people["raw_data"]["people_token"] == "alice"
+    assert people["extra"]["fallbacks"]["content"] == "dynamic_required"
+
+    collection = extract_zhihu('<title>收藏夹 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/collection/12345")
+    assert collection["extra"]["content_type"] == "collection"
+    assert collection["extra"]["collection_id"] == "12345"
+    assert collection["raw_data"]["collection_id"] == "12345"
+
+
+def test_not_found_page_is_distinct_from_login_or_dynamic_fallback():
+    data = extract_zhihu('<html><title>页面不存在 - 知乎</title><body>你似乎来到了没有知识存在的荒原</body></html>', "https://www.zhihu.com/question/404")
+    assert data["extra"]["not_found"] is True
+    assert data["extra"]["requires_login"] is False
+    assert data["extra"]["dynamic_fallback"] is False
+    assert data["extra"]["fallbacks"]["content"] == "not_found"
+    assert data["raw_data"]["not_found"] is True

@@ -16,12 +16,13 @@
 2. 文章页：`https://zhuanlan.zhihu.com/p/<article_id>` / `https://www.zhihu.com/p/<article_id>`
 3. 问题页多回答：`https://www.zhihu.com/question/<qid>`，会在 `extra.items` 中返回多个回答候选
 4. 想法 / 视频 / 盐选类 URL：`/pin/<id>`、`/zvideo/<id>`、`/market/paid_column/<id>` 等会识别类型和 ID；正文通常依赖动态渲染，当前以明确 fallback 状态返回
+5. 用户页 / 收藏夹 URL：`/people/<token>`、`/collection/<id>` 会记录 `people_token` / `collection_id`，不伪造正文
 
 解析优先级：
 
 1. Zhihu SSR/initial JSON (`#js-initialData`, `window.__INITIAL_STATE__`)
 2. DOM fallback (`.AnswerCard`, `.AnswerItem`, `.Post-RichTextContainer`, `article`)
-3. 如果页面只返回动态空壳，设置 `extra.dynamic_fallback = true`
+3. 如果页面只返回动态空壳，设置 `extra.dynamic_fallback = true`；如果命中不存在页面文案，设置 `extra.not_found = true` 且 `extra.fallbacks.content = "not_found"`
 
 ## 登录墙 / 反爬
 
@@ -53,3 +54,12 @@ python3 scripts/fetch_text.py 'https://www.zhihu.com/question/...' --cookies coo
 ## 受限类型 fallback
 
 想法、视频、盐选等页面经常不在初始 HTML 中给出完整正文。当前实现不会伪造内容；会在 `extra.content_type`、对应 `*_id`、`extra.dynamic_fallback`、`extra.fallbacks.content` 与顶层 `raw_data` 中记录状态，便于后续登录态/动态渲染/接口抓取补全。
+
+## 不存在页面
+
+当知乎返回「页面不存在」「内容不存在」「你似乎来到了没有知识存在的荒原」等文案时，解析器会把它与登录墙、动态空壳区分开：
+
+- `extra.not_found = true`
+- `extra.dynamic_fallback = false`
+- `extra.fallbacks.content = "not_found"`
+- 顶层 `raw_data.not_found` 同步记录，方便批处理跳过重试。
