@@ -177,3 +177,11 @@ def test_encoded_redirect_path_collection_urls_are_extracted():
 def test_normalize_encoded_redirect_path_to_note_url():
     url = "https://www.xiaohongshu.com/router?redirectPath=https%3A%2F%2Fwww.xiaohongshu.com%2Fdiscovery%2Fitem%2F77abcdef000000001f03abcd%3Fshare_id%3D2"
     assert normalize_xhs_url(url) == "https://www.xiaohongshu.com/discovery/item/77abcdef000000001f03abcd"
+
+
+def test_rate_limit_wall_is_reported_distinctly_with_retry_hint():
+    extractor = XiaohongshuExtractor(session=FakeSession([FakeResponse(text="<html>Too Many Requests</html>")]), rate_limit_seconds=7)
+    item = extractor.extract(NOTE_URL)
+    assert item.status == "error"
+    assert "rate-limit" in item.errors[0]
+    assert item.metadata["retry_after"] == 7

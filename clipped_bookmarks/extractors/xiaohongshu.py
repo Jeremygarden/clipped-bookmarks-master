@@ -22,7 +22,8 @@ IMAGE_RE = re.compile(r'https?://[^"\'<>\s]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"\'<>
 VIDEO_RE = re.compile(r'https?://[^"\'<>\s]+?\.(?:mp4|m3u8)(?:\?[^"\'<>\s]*)?', re.I)
 SCRIPT_RE = re.compile(r'<script[^>]+id=["\'](__INITIAL_STATE__|initial-state|__NEXT_DATA__)["\'][^>]*>(.*?)</script>', re.I | re.S)
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
-LOGIN_WALL_MARKERS = ("登录后查看", "登录以查看更多", "请登录", "验证码", "captcha", "滑块", "安全验证", "访问频繁", "risk")
+LOGIN_WALL_MARKERS = ("登录后查看", "登录以查看更多", "请登录", "验证码", "captcha", "滑块", "安全验证", "访问频繁", "risk", "too many requests")
+RATE_LIMIT_MARKERS = ("访问频繁", "too many requests", "rate")
 DEFAULT_HEADERS = {"User-Agent": "Mozilla/5.0 Chrome/124 Safari/537.36", "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"}
 OCRHook = Callable[[bytes, str | None], str | None]
 
@@ -171,7 +172,9 @@ def extract_collection_id(url: str) -> str | None: return (m.group(1) if (m := C
 def detect_access_wall(html: str) -> str | None:
     low = html.lower()
     for marker in LOGIN_WALL_MARKERS:
-        if marker.lower() in low: return f"Xiaohongshu login/anti-bot marker detected: {marker}"
+        if marker.lower() in low:
+            category = "rate-limit" if marker.lower() in RATE_LIMIT_MARKERS else "login/anti-bot"
+            return f"Xiaohongshu {category} marker detected: {marker}"
     return None
 
 def parse_xhs_html(html: str) -> dict[str, Any]:
