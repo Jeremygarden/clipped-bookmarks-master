@@ -35,6 +35,15 @@ def test_answer_extracts_publish_time_and_upvote_separately():
     assert data["extra"]["question_id"] == "1"
     assert data["extra"]["answer_id"] == "999"
     assert data["top_comments"][0]["likes"] == 88
+    assert data["raw_data"]["url"].endswith("/answer/999")
+    assert data["raw_data"]["item_count"] == 1
+
+
+def test_bookmark_item_compatible_top_level_fields_are_stable():
+    data = extract_zhihu("<title>空页面 - 知乎</title>", "https://www.zhihu.com/question/empty")
+    for key in ("platform", "title", "author", "publish_time", "content", "top_comments", "raw_html_len", "raw_data", "extra"):
+        assert key in data
+    assert data["extra"]["dynamic_fallback"] is True
 
 
 def test_article_from_initial_state():
@@ -63,6 +72,27 @@ def test_article_from_initial_state():
     assert "文章正文 A" in data["content"]
 
 
+def test_window_initial_state_balanced_json_with_nested_braces():
+    state = {
+        "entities": {
+            "answers": {
+                "55": {
+                    "id": "55",
+                    "question": {"title": "嵌套问题"},
+                    "author": {"name": "作者"},
+                    "content": "<p>包含 { 花括号 } 的回答</p>",
+                    "upvote_count": "1.5 万",
+                }
+            }
+        }
+    }
+    html = f'<script>window.__INITIAL_STATE__ = {json.dumps(state, ensure_ascii=False)};</script>'
+    data = extract_zhihu(html, "https://www.zhihu.com/question/7/answer/55")
+    assert data["upvote_count"] == 15000
+    assert "花括号" in data["content"]
+    assert data["extra"]["items"][0]["raw_data"]["id"] == "55"
+
+
 def test_question_multiple_answers_and_login_wall_detection():
     state = {
         "answers": {
@@ -76,3 +106,4 @@ def test_question_multiple_answers_and_login_wall_detection():
     assert data["extra"]["question_id"] == "123"
     assert len(data["extra"]["items"]) == 2
     assert data["extra"]["requires_login"] is True
+    assert data["raw_data"]["content_type"] == "question"

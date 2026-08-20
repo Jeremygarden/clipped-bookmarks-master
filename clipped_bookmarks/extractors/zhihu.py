@@ -90,6 +90,37 @@ def _json_loads(candidate: str) -> Optional[Any]:
         return None
 
 
+def _balanced_json_after(html: str, marker: str) -> str:
+    start = html.find(marker)
+    if start < 0:
+        return ""
+    brace = html.find("{", start + len(marker))
+    if brace < 0:
+        return ""
+    depth = 0
+    in_string = False
+    escape = False
+    for pos in range(brace, len(html)):
+        ch = html[pos]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return html[brace:pos + 1]
+    return ""
+
+
 def initial_state(html: str) -> Dict[str, Any]:
     """Extract JSON state embedded by Zhihu's server-rendered pages."""
     soup = BeautifulSoup(html, "html.parser")
@@ -99,9 +130,9 @@ def initial_state(html: str) -> Dict[str, Any]:
             data = _json_loads(node.get_text(strip=True) or node.string or "")
             if isinstance(data, dict):
                 return data
-    m = re.search(r"window\.__INITIAL_STATE__\s*=\s*(\{.*?\})\s*</script>", html, re.S)
-    if m:
-        data = _json_loads(m.group(1))
+    for marker in ("window.__INITIAL_STATE__", "window.__INITIAL_DATA__"):
+        candidate = _balanced_json_after(html, marker)
+        data = _json_loads(candidate) if candidate else None
         if isinstance(data, dict):
             return data
     return {}
@@ -151,8 +182,10 @@ def _item_from_json(obj: Dict[str, Any], fallback_title: str = "") -> Optional[D
     question = obj.get("question") if isinstance(obj.get("question"), dict) else {}
     title = clean_text(obj.get("title") or question.get("title") or fallback_title)
     publish_time = _timestamp(obj.get("created_time") or obj.get("created") or obj.get("updated_time"))
-    upvote_count = parse_count(obj.get("voteup_count") or obj.get("upvoteCount") or obj.get("thanks_count"))
+    upvote_count = parse_count(obj.get("voteup_count") or obj.get("upvoteCount") or obj.get("upvote_count") or obj.get("thanks_count"))
     item_type = obj.get("type") or obj.get("content_type") or ("answer" if question else "article")
+    raw_url = obj.get("url") or obj.get("origin_url") or ""
+    raw_id = obj.get("id") or obj.get("answer_id") or obj.get("article_id") or ""
     return {
         "type": item_type,
         "id": str(obj.get("id") or obj.get("answer_id") or obj.get("article_id") or ""),
@@ -161,7 +194,8 @@ def _item_from_json(obj: Dict[str, Any], fallback_title: str = "") -> Optional[D
         "publish_time": publish_time,
         "upvote_count": upvote_count,
         "content": content,
-        "url": obj.get("url") or obj.get("origin_url") or "",
+        "url": raw_url,
+        "raw_data": {"id": raw_id, "type": item_type, "url": raw_url},
     }
 
 
@@ -214,6 +248,11 @@ def dom_items(soup: BeautifulSoup, fallback_title: str = "") -> List[Dict[str, A
                 "upvote_count": upvote_count,
                 "content": content,
                 "url": "",
+                "raw_data": {
+                    "id": node.get("data-za-extra-module") or node.get("data-id") or "",
+                    "type": "article" if "Post" in " ".join(node.get("class", [])) or node.name == "article" else "answer",
+                    "url": "",
+                },
             })
     return items
 
@@ -278,6 +317,7 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
         "login_wall_markers": wall["markers"],
         "dynamic_fallback": not bool(deduped) and not wall["requires_login"],
         "comments_fallback": "dom" if soup.select_one(".CommentItem, [class*='CommentItem']") else "api_or_login_required",
+        "raw_data": {"url": url, "content_type": content_type, "item_count": len(deduped)},
     }
 
     return {
@@ -289,6 +329,7 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
         "content": content,
         "top_comments": extract_comments(soup),
         "raw_html_len": len(html or ""),
+        "raw_data": extra["raw_data"],
         "extra": extra,
     }
 
