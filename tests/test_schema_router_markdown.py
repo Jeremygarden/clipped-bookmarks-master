@@ -26,6 +26,13 @@ def test_routes_xhs_short_link_sample_as_note_requiring_expansion():
     assert item.metadata["requires_expansion"] is True
 
 
+def test_routes_xhslink_com_short_link_as_note_requiring_expansion():
+    item = route_url("https://xhslink.com/a/abc")
+    assert item.platform == Platform.XIAOHONGSHU
+    assert item.source_type == SourceType.XIAOHONGSHU_NOTE
+    assert item.metadata["requires_expansion"] is True
+
+
 def test_routes_xhs_collection_sample():
     item = route_url(XHS_COLLECTION_SAMPLE)
     assert item.platform == Platform.XIAOHONGSHU

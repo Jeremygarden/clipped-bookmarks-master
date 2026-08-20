@@ -58,7 +58,7 @@ def route_url(source: str) -> BookmarkItem:
             metadata={"input_kind": "url"},
         )
 
-    if host.endswith("xhslink.cn"):
+    if host.endswith(("xhslink.cn", "xhslink.com")):
         return BookmarkItem(
             url=source,
             platform=Platform.XIAOHONGSHU,
