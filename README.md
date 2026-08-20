@@ -4,12 +4,12 @@
 
 ## Overview
 
-**Clipped Bookmarks Master** is a CodeBuddy Skill that fetches content from your saved/liked posts across **Zhihu, Xiaohongshu (RED), Bilibili, WeChat Video Channels, and WeChat Official Accounts**, cleans them up, and outputs structured Markdown notes.
+**Clipped Bookmarks Master** is a CodeBuddy Skill that fetches content from your saved/liked posts across **Zhihu, Xiaohongshu (RED), WeChat Video Channels, and WeChat Official Accounts**, cleans them up, and outputs structured Markdown notes.
 
 | Content Type | Platforms | What It Does |
 |-------------|-----------|--------------|
 | **Text** | Zhihu (Q&A, articles), WeChat Official Accounts | Fetches body text → strips ads/noise → keeps core arguments + top-voted comments |
-| **Video** | Xiaohongshu, Bilibili, WeChat Video Channels | Downloads video → extracts audio → transcribes with timestamps → AI-summarizes into structured notes (key points / steps / checklists) |
+| **Video** | Xiaohongshu and WeChat Video Channels | Downloads video → extracts audio → transcribes with timestamps → AI-summarizes into structured notes (key points / steps / checklists) |
 
 ## Supported Platforms
 
@@ -17,7 +17,6 @@
 |----------|------|-------|
 | [Zhihu](https://www.zhihu.com) | Text | Q&A answers, articles. Supports multi-answer pages. |
 | [Xiaohongshu](https://www.xiaohongshu.com) | Video / Image-Text | Video notes go through transcription pipeline. Image-text notes use OCR + body text. |
-| [Bilibili](https://www.bilibili.com) | Video | **Timestamps preserved** for key-frame jumping. Can also fetch video description and top danmu/comments. |
 | WeChat Video Channels | Video | No official download API — user uploads the video file directly. |
 | WeChat Official Accounts | Text | Strips QR-code promotions and "read more" blocks. |
 
@@ -69,11 +68,9 @@ python3 scripts/fetch_text.py "https://www.zhihu.com/question/633780178/answer/1
 # from the raw JSON using references/templates.md
 ```
 
-### 3. Process a Bilibili Video (Video)
 
 ```bash
 # Download
-bash scripts/download_media.sh "https://www.bilibili.com/video/BV1xx411c7mD" \
   --dir ./downloads
 
 # Extract audio
@@ -93,7 +90,6 @@ Create `links.txt` (one URL per line):
 
 ```
 https://www.zhihu.com/question/633780178/answer/1997868452766058023
-https://www.bilibili.com/video/BV1xx411c7mD
 https://mp.weixin.qq.com/s/xxxxxxxx
 ```
 
@@ -129,7 +125,6 @@ The script auto-detects each platform and routes to the appropriate pipeline.
 #bookmarks #{platform} #{topic}
 ```
 
-### Video Note (Bilibili / Xiaohongshu / Video Channels)
 
 ```markdown
 # {Video Title}
@@ -158,7 +153,6 @@ The script auto-detects each platform and routes to the appropriate pipeline.
 #bookmarks #{platform} #{topic}
 ```
 
-> **Note:** Bilibili and WeChat Video Channels **must** include the "Key Timestamps" section for easy key-frame jumping.
 
 ## Environment Variables
 
@@ -171,7 +165,6 @@ The script auto-detects each platform and routes to the appropriate pipeline.
 | Issue | Cause | Fix |
 |-------|-------|-----|
 | `fetch_text.py` returns empty | Anti-bot / login wall | Add `--cookies cookies.txt` with logged-in cookies, or paste content manually |
-| `download_media.sh` fails | Platform restriction / geo-block | Try `--cookies-from-browser chrome` for Bilibili; for Video Channels, upload the file directly |
 | `transcribe.sh` errors | Missing ASR deps / no API key | Run `install_deps.sh` or set `OPENAI_API_KEY` |
 | Content behind paywall | — | Stop and inform user; **never fabricate content** |
 
