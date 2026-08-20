@@ -17,6 +17,7 @@ from clipped_bookmarks.schema import BookmarkAsset, BookmarkItem, Platform, Sour
 NOTE_PATH_RE = re.compile(r"/(?:explore|discovery/item|search_result)/([A-Za-z0-9_-]{8,64})")
 COLLECTION_PATH_RE = re.compile(r"/collection/item/([A-Za-z0-9_-]{8,64})")
 NOTE_URL_RE = re.compile(r'https?://(?:www\.)?xiaohongshu\.com/(?:explore|discovery/item|search_result)/[A-Za-z0-9_-]+(?:\?[^"\'<>{}\s]*)?', re.I)
+REDIRECT_URL_RE = re.compile(r'[?&](?:redirectPath|redirect_path|target|url)=([^&]+)', re.I)
 IMAGE_RE = re.compile(r'https?://[^"\'<>\s]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"\'<>\s]*)?', re.I)
 VIDEO_RE = re.compile(r'https?://[^"\'<>\s]+?\.(?:mp4|m3u8)(?:\?[^"\'<>\s]*)?', re.I)
 SCRIPT_RE = re.compile(r'<script[^>]+id=["\'](__INITIAL_STATE__|initial-state|__NEXT_DATA__)["\'][^>]*>(.*?)</script>', re.I | re.S)
@@ -152,9 +153,13 @@ class XiaohongshuExtractor:
         self._last_request_at = time.monotonic()
 
 def normalize_xhs_url(url: str) -> str:
-    p = urlparse(unquote(_unescape(url.strip()).replace("\\/", "/").replace("\\u002F", "/")))
-    scheme = p.scheme or "https"; netloc = p.netloc or p.path.split("/")[0]; path = p.path if p.netloc else "/" + "/".join(p.path.split("/")[1:])
+    raw = _unescape(url.strip()).replace("\\/", "/").replace("\\u002F", "/")
+    p = urlparse(unquote(raw))
     qs = parse_qs(p.query)
+    for key in ("redirectPath", "redirect_path", "target", "url"):
+        if qs.get(key) and "/explore/" in qs[key][0] or qs.get(key) and "/discovery/item/" in qs[key][0]:
+            return normalize_xhs_url(qs[key][0])
+    scheme = p.scheme or "https"; netloc = p.netloc or p.path.split("/")[0]; path = p.path if p.netloc else "/" + "/".join(p.path.split("/")[1:])
     if path.startswith("/search_result/") and qs.get("xsec_source", [""])[0] == "pc_feed":
         path = path.replace("/search_result/", "/explore/", 1)
     return urlunparse((scheme, netloc.lower(), path.rstrip("/"), "", "", ""))
@@ -184,6 +189,10 @@ def extract_note_urls_from_html(html: str) -> list[str]:
     urls = {normalize_xhs_url(unquote(u)) for u in NOTE_URL_RE.findall(html)}
     text = html.replace("\\/", "/").replace("\\u002F", "/")
     urls |= {normalize_xhs_url(unquote(u)) for u in NOTE_URL_RE.findall(text)}
+    for encoded in REDIRECT_URL_RE.findall(text):
+        decoded = unquote(_unescape(encoded))
+        if "xiaohongshu.com/" in decoded:
+            urls |= {normalize_xhs_url(u) for u in NOTE_URL_RE.findall(decoded)}
     return sorted(urls)
 def _meta(html: str, name: str) -> str:
     m = re.search(r'<meta[^>]+(?:property|name)=["\']' + re.escape(name) + r'["\'][^>]+content=["\'](.*?)["\']', html, re.I | re.S); return m.group(1) if m else ""

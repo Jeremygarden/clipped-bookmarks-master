@@ -168,3 +168,12 @@ def test_short_video_url_without_extension_is_kept_from_state():
     parsed = parse_xhs_html(html)
     assert parsed["videos"] == ["https://sns-video.xhscdn.com/stream/abc?sign=1"]
     assert parsed["video_assets"][0]["metadata"]["fileSize"] == 12345
+
+
+def test_encoded_redirect_path_collection_urls_are_extracted():
+    html = "https://www.xiaohongshu.com/router?redirectPath=https%3A%2F%2Fwww.xiaohongshu.com%2Fexplore%2F66abcdef000000001f03abcd%3Fxsec_token%3Dt"
+    assert extract_note_urls_from_html(html) == ["https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd"]
+
+def test_normalize_encoded_redirect_path_to_note_url():
+    url = "https://www.xiaohongshu.com/router?redirectPath=https%3A%2F%2Fwww.xiaohongshu.com%2Fdiscovery%2Fitem%2F77abcdef000000001f03abcd%3Fshare_id%3D2"
+    assert normalize_xhs_url(url) == "https://www.xiaohongshu.com/discovery/item/77abcdef000000001f03abcd"
