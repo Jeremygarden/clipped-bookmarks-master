@@ -157,8 +157,9 @@ def normalize_xhs_url(url: str) -> str:
     p = urlparse(unquote(raw))
     qs = parse_qs(p.query)
     for key in ("redirectPath", "redirect_path", "target", "url"):
-        if qs.get(key) and "/explore/" in qs[key][0] or qs.get(key) and "/discovery/item/" in qs[key][0]:
-            return normalize_xhs_url(qs[key][0])
+        values = qs.get(key) or []
+        if values and ("/explore/" in values[0] or "/discovery/item/" in values[0]):
+            return normalize_xhs_url(values[0])
     scheme = p.scheme or "https"; netloc = p.netloc or p.path.split("/")[0]; path = p.path if p.netloc else "/" + "/".join(p.path.split("/")[1:])
     if path.startswith("/search_result/") and qs.get("xsec_source", [""])[0] == "pc_feed":
         path = path.replace("/search_result/", "/explore/", 1)
