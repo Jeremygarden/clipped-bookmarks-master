@@ -70,6 +70,19 @@ def test_anti_bot_page_reports_login_required_comment_fallback():
     assert data["raw_data"]["anti_bot"] is True
 
 
+def test_initial_state_accepts_pretty_printed_json_script():
+    html = """
+    <script id="js-initialData" type="application/json">
+    {
+      "answers": {"77": {"id": "77", "question": {"title": "格式化问题"}, "content": "<p>格式化正文</p>"}}
+    }
+    </script>
+    """
+    data = extract_zhihu(html, "https://www.zhihu.com/question/1/answer/77")
+    assert data["title"] == "格式化问题"
+    assert "格式化正文" in data["content"]
+
+
 def test_article_from_initial_state():
     state = {
         "entities": {

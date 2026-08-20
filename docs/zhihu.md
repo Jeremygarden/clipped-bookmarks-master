@@ -63,3 +63,15 @@ python3 scripts/fetch_text.py 'https://www.zhihu.com/question/...' --cookies coo
 - `extra.dynamic_fallback = false`
 - `extra.fallbacks.content = "not_found"`
 - 顶层 `raw_data.not_found` 同步记录，方便批处理跳过重试。
+
+## 平台边界
+
+本项目当前只支持：小红书、微信视频号短视频/文件、微信公众号、知乎。知乎 URL 检测使用严格 host 匹配，仅接受 `zhihu.com`、`www.zhihu.com`、`zhuanlan.zhihu.com`，避免把第三方链接参数中包含 `zhihu.com` 的页面误判为知乎内容。
+
+知乎解析覆盖：
+
+- 问题 / 回答：`https://www.zhihu.com/question/<question_id>`、`/answer/<answer_id>`
+- 文章：`https://zhuanlan.zhihu.com/p/<article_id>` 或知乎站内 `/p/<article_id>`
+- 动态空壳和登录墙：不伪造正文，通过 `extra.fallbacks`、`extra.requires_login`、`extra.dynamic_fallback` 标注后续处理需求
+
+计数字段会归一化常见中文单位，例如 `1.2 万赞同`、`3K`、`1 万 2 千赞同`。

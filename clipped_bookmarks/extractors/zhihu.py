@@ -181,7 +181,8 @@ def initial_state(html: str) -> Dict[str, Any]:
     for selector in ("#js-initialData", "#initialData"):
         node = soup.select_one(selector)
         if node:
-            data = _json_loads(node.get_text(strip=True) or node.string or "")
+            raw = node.string or node.get_text(strip=True) or ""
+            data = _json_loads(raw.strip())
             if isinstance(data, dict):
                 return data
     for marker in ("window.__INITIAL_STATE__", "window.__INITIAL_DATA__"):
