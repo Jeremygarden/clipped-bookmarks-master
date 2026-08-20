@@ -22,7 +22,7 @@ if [[ -z "$LINKS" || ! -f "$LINKS" ]]; then
 fi
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/bilibili "$OUT"/xiaohongshu "$OUT"/videochannel
+mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/xiaohongshu "$OUT"/videochannel
 
 count=0
 while IFS= read -r line; do
@@ -42,8 +42,8 @@ while IFS= read -r line; do
       python3 "$SKILL_DIR/fetch_text.py" "$url" --out "$raw"
     fi
     echo "    [文字类] 已抓取原始内容 -> $raw （交由 Agent 提炼为 Markdown）"
-  elif [[ "$url" == *"bilibili.com"* || "$url" == *"b23.tv"* || "$url" == *"xiaohongshu.com"* || "$url" == *"xhslink.com"* ]]; then
-    plat=$( [[ "$url" == *"bili"* ]] && echo bilibili || echo xiaohongshu )
+  elif [[ "$url" == *"xiaohongshu.com"* || "$url" == *"xhslink.com"* ]]; then
+    plat=xiaohongshu
     bash "$SKILL_DIR/download_media.sh" "$url" --dir "$OUT/$plat"
     echo "    [视频类] 已下载。请用 extract_audio.sh + transcribe.sh 完成转写后提炼。"
   else
