@@ -64,7 +64,7 @@ updated: "2026-08-19"
    - 保留原文关键引用（用 `>` 引用块，并注明来源）
 4. 套用「文字类 Markdown 模板」（见 references/templates.md）
 
-### 步骤 B：视频类处理（小红书 / B站 / 视频号）
+### 步骤 B：视频类处理（小红书 / 视频号）
 
 1. 用 `scripts/download_media.sh <url>` 下载视频/音频（自动选择 yt-dlp 或平台专用方式）。
 2. 用 `scripts/extract_audio.sh <video_file>` 分离出音频（mp3，16k）。
