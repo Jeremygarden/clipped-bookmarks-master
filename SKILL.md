@@ -1,5 +1,6 @@
 ---
 name: clipped-bookmarks-master
+description: 收藏夹整理师 - 对知乎、小红书、B站、微信视频号、微信公众号中收藏/点赞过的内容，抓取文字或视频并清洗，输出为标准 Markdown 笔记（核心观点+高赞补充；视频类额外生成逐字稿与时间戳）。当用户给出上述平台的链接、或说"整理收藏夹/整理我的收藏/把收藏转成笔记"时触发。
 version: "1.0.0"
 author: "CodeBuddy AI"
 created: "2026-08-19"
@@ -19,6 +20,7 @@ updated: "2026-08-19"
 - 用户给出了以下平台的链接：
   - 知乎 `zhihu.com`（问题 / 回答 / 文章）
   - 小红书 `xiaohongshu.com` / `xhslink.com`
+  - B站 `bilibili.com` / `b23.tv`
   - 微信视频号（用户直接粘贴的视频号链接 / 文件）
   - 微信公众号 `mp.weixin.qq.com`
 - 用户说："整理我的收藏"、"把收藏夹转成笔记"、"收藏的内容总结一下"、"帮我把点赞过的保存成笔记"
@@ -38,7 +40,7 @@ updated: "2026-08-19"
 1. 识别平台与内容类型（文字 or 视频）
         │
         ├─ 文字类（知乎回答/文章、公众号） ──► 步骤 A
-        └─ 视频类（小红书、视频号）    ──► 步骤 B
+        └─ 视频类（小红书、B站、视频号）    ──► 步骤 B
         │
         ▼
 2. 抓取 / 下载（调用本 Skill 的 scripts）
@@ -63,7 +65,7 @@ updated: "2026-08-19"
    - 保留原文关键引用（用 `>` 引用块，并注明来源）
 4. 套用「文字类 Markdown 模板」（见 references/templates.md）
 
-### 步骤 B：视频类处理（小红书 / 视频号）
+### 步骤 B：视频类处理（小红书 / B站 / 视频号）
 
 1. 用 `scripts/download_media.sh <url>` 下载视频/音频（自动选择 yt-dlp 或平台专用方式）。
 2. 用 `scripts/extract_audio.sh <video_file>` 分离出音频（mp3，16k）。
@@ -73,7 +75,7 @@ updated: "2026-08-19"
    - **重点**：核心结论 / 金句
    - **步骤**：可复现的操作步骤（如有教程属性）
    - **清单**：要点 checklist
-5. 视频号额外保留**时间戳**（`[MM:SS]`），方便回跳关键帧。
+5. B站 / 视频号额外保留**时间戳**（`[MM:SS]`），方便回跳关键帧。
 6. 套用「视频类 Markdown 模板」（见 references/templates.md）
 
 ## 各平台特殊处理要点
@@ -82,6 +84,7 @@ updated: "2026-08-19"
 |------|------|----------|----------|
 | 知乎 | 文字 | `fetch_text.py` + 需登录态时提示用户 | 多回答问题：每个高赞回答单独成节；保留答主与赞同数 |
 | 小红书 | 视频/图文 | `download_media.sh` | 图文笔记：抓取图片OCR+正文；视频：走步骤 B |
+| B站 | 视频 | `download_media.sh`（yt-dlp） | **必须保留时间戳**；可同时抓取视频简介与高赞弹幕/评论 |
 | 微信视频号 | 视频 | 用户上传文件 或 粘贴链接 | 无官方 API，优先让用户发文件；链接走通用下载，失败则告知 |
 | 微信公众号 | 文字 | `fetch_text.py` | 清洗二维码引流、阅读原文引导；保留作者与发布时间 |
 
@@ -119,11 +122,15 @@ updated: "2026-08-19"
 2. 清洗广告与无关评论，保留答主核心观点 + 高赞补充
 3. 按文字类模板输出 `bookmarks_notes/知乎_xxxx.md`
 
+### 示例 2：B站视频（视频类，需时间戳）
 
+用户给出：`https://www.bilibili.com/video/BV1xx411c7mD`
 
+1. `bash scripts/download_media.sh "https://www.bilibili.com/video/BV1xx411c7mD"`
 2. `bash scripts/extract_audio.sh downloads/xxx.mp4`
 3. `bash scripts/transcribe.sh downloads/xxx.mp3 --api openai`
 4. 提炼笔记，每个重点前标注 `[MM:SS]` 时间戳
+5. 输出 `bookmarks_notes/bilibili/xxx.md`
 
 ### 示例 3：批量整理收藏夹
 

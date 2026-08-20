@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # download_media.sh - 收藏夹整理师 · 视频/音频下载
+# 自动选择下载方式：优先 yt-dlp（支持 B站/小红书等），失败给出提示。
 # 用法: bash scripts/download_media.sh <url> [--dir ./downloads]
 set -euo pipefail
 
@@ -41,6 +42,7 @@ yt-dlp -f "bv*+ba/best" --merge-output-format mp4 \
   --restrict-filenames \
   "$URL" || {
   echo "[!] 下载失败。可能原因：登录限制 / 地区限制 / 链接失效。"
+  echo "    B站需登录可加 --cookies-from-browser chrome 重试。"
   exit 3
 }
 
