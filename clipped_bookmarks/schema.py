@@ -21,6 +21,7 @@ class Platform(str, Enum):
     WECHAT_OFFICIAL_ACCOUNT = "wechat_official_account"
     XIAOHONGSHU = "xiaohongshu"
     WECHAT_CHANNELS = "wechat_channels"
+    ZHIHU = "zhihu"
 
 
 class SourceType(str, Enum):
@@ -29,6 +30,8 @@ class SourceType(str, Enum):
     XIAOHONGSHU_COLLECTION = "xiaohongshu_collection"
     WECHAT_CHANNELS_FILE = "wechat_channels_file"
     WECHAT_CHANNELS_VIDEO = "wechat_channels_video"
+    ZHIHU_ANSWER = "zhihu_answer"
+    ZHIHU_ARTICLE = "zhihu_article"
 
 
 SUPPORTED_SOURCE_TYPES: tuple[SourceType, ...] = (
@@ -37,12 +40,13 @@ SUPPORTED_SOURCE_TYPES: tuple[SourceType, ...] = (
     SourceType.XIAOHONGSHU_COLLECTION,
     SourceType.WECHAT_CHANNELS_FILE,
     SourceType.WECHAT_CHANNELS_VIDEO,
+    SourceType.ZHIHU_ANSWER,
+    SourceType.ZHIHU_ARTICLE,
 )
 
 UNSUPPORTED_PLATFORMS: dict[str, str] = {
     "bilibili": "Bilibili support is intentionally out of scope for the core architecture.",
     "b23": "Bilibili short links are intentionally unsupported.",
-    "zhihu": "Zhihu support is not part of this core architecture scope.",
 }
 
 

@@ -19,6 +19,7 @@ def route_url(source: str) -> BookmarkItem:
     - Xiaohongshu note links (xhslink.cn, xiaohongshu.com/explore|discovery/item)
     - Xiaohongshu collection item links (xiaohongshu.com/collection/item/...)
     - WeChat Channels local uploaded files or channel video links
+    - Zhihu answers and Zhuanlan articles
     """
 
     if not source or not source.strip():
@@ -80,6 +81,22 @@ def route_url(source: str) -> BookmarkItem:
             source_type=SourceType.WECHAT_CHANNELS_VIDEO,
             metadata={"input_kind": "url"},
         )
+
+    if host.endswith("zhihu.com"):
+        if path.startswith("/question/") and "/answer/" in path:
+            return BookmarkItem(
+                url=source,
+                platform=Platform.ZHIHU,
+                source_type=SourceType.ZHIHU_ANSWER,
+                metadata={"input_kind": "url"},
+            )
+        if host == "zhuanlan.zhihu.com" or path.startswith("/p/"):
+            return BookmarkItem(
+                url=source,
+                platform=Platform.ZHIHU,
+                source_type=SourceType.ZHIHU_ARTICLE,
+                metadata={"input_kind": "url"},
+            )
 
     raise UnsupportedPlatformError(f"Unsupported source: {source}")
 

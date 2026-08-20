@@ -1,6 +1,6 @@
 ---
 name: clipped-bookmarks-master
-description: 收藏夹整理师 - 对小红书、微信视频号、微信公众号中收藏/点赞过的内容，抓取文字或视频并清洗，输出为标准 Markdown 笔记（核心观点+高赞补充；视频类额外生成逐字稿与时间戳）。当用户给出上述平台的链接、或说"整理收藏夹/整理我的收藏/把收藏转成笔记"时触发。
+description: 收藏夹整理师 - 对小红书、微信视频号、微信公众号、知乎中收藏/点赞过的内容，抓取文字或视频并清洗，输出为标准 Markdown 笔记（核心观点+高赞补充；视频类额外生成逐字稿与时间戳）。当用户给出上述平台的链接、或说"整理收藏夹/整理我的收藏/把收藏转成笔记"时触发。
 version: "1.0.0"
 author: "CodeBuddy AI"
 created: "2026-08-19"
@@ -26,7 +26,7 @@ updated: "2026-08-19"
 ## When NOT to Use
 
 - 用户给的是非上述平台的普通网页（此时走通用网页抓取流程，不加载本 Skill）
-- 用户给的是知乎、B站 / b23.tv 链接：当前核心架构明确不支持，应告知 unsupported，不要绕过 router
+- 用户给的是 B站 / b23.tv 链接：当前核心架构明确不支持，应告知 unsupported，不要绕过 router
 - 用户只是想浏览链接，没有"保存 / 整理 / 转笔记"意图
 - 链接为付费墙 / 登录后才能看、且无法获取内容时——应如实告知用户，不要编造内容
 
@@ -86,14 +86,14 @@ updated: "2026-08-19"
 | 小红书收藏合集 | Collection | `route_url()` → collection extractor | 仅 `xiaohongshu.com/collection/item/...` 属于当前核心支持 |
 | 微信视频号 | 文件/视频 | 用户上传文件 或 粘贴支持的视频链接 | 无官方 API，优先让用户发文件；Obsidian 写入需显式确认 |
 | 微信公众号 | 文字 | `fetch_text.py` | 清洗二维码引流、阅读原文引导；保留作者与发布时间 |
-| 知乎 | — | Unsupported | 当前核心架构不支持 |
+| 知乎 | 文字 | `route_url()` → zhihu extractor | 支持问题回答与专栏文章，抽取由平台 agent 完成 |
 | B站 / b23.tv | — | Unsupported | Router 必须报 unsupported，不新增 B站支持 |
 
 
 ## 核心中间层
 
 - `BookmarkItem`：所有平台统一输出字段，包括 `platform`、`source_type`、`url`、`title`、`author`、`published_at`、`content`、`summary`、`tags`、`assets`、`metadata`、`status`、`errors`。
-- `route_url(source)`：只接受微信公众号、小红书笔记、小红书收藏合集、微信视频号文件/视频；知乎、B站返回 unsupported。
+- `route_url(source)`：只接受微信公众号、小红书笔记、小红书收藏合集、微信视频号文件/视频、知乎回答/文章；B站返回 unsupported。
 - `render_markdown(item)`：输出带 YAML frontmatter 的标准 Markdown。
 - `ObsidianExportConfig` / `export_to_obsidian(...)`：Obsidian 导出骨架；写入 vault 前必须显式 `confirm=True` 或 CLI `--confirm-obsidian`。
 - CLI：`python3 -m clipped_bookmarks.cli <source> [--out note.md] [--obsidian-vault PATH --confirm-obsidian]`。
@@ -140,7 +140,7 @@ updated: "2026-08-19"
 2. `bash scripts/extract_audio.sh downloads/xxx.mp4`
 3. `bash scripts/transcribe.sh downloads/xxx.mp3 --api openai`
 4. 提炼笔记，每个重点前标注 `[MM:SS]` 时间戳
-5. 输出 `bookmarks_notes/bilibili/xxx.md`
+5. 输出 `bookmarks_notes/videochannel/xxx.md`
 
 ### 示例 3：批量整理收藏夹
 
