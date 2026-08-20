@@ -162,3 +162,11 @@ def test_bilibili_short_links_are_unsupported():
             assert "Bilibili" in str(exc)
         else:
             raise AssertionError(f"Bilibili share link should be unsupported: {source}")
+
+
+def test_descriptor_for_source_type_maps_active_core_sources():
+    from clipped_bookmarks.platforms import descriptor_for_source_type
+
+    assert descriptor_for_source_type(SourceType.ZHIHU_ANSWER).platform == Platform.ZHIHU
+    assert descriptor_for_source_type("wechat_channels_file").platform == Platform.WECHAT_CHANNELS
+    assert descriptor_for_source_type("unknown") is None

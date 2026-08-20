@@ -80,3 +80,17 @@ def is_supported_platform(platform: Platform | str) -> bool:
         except ValueError:
             return False
     return platform in SUPPORTED_PLATFORM_REGISTRY
+
+
+def descriptor_for_source_type(source_type: SourceType | str) -> PlatformDescriptor | None:
+    """Return the active platform descriptor that owns a source type, if any."""
+
+    if isinstance(source_type, str):
+        try:
+            source_type = SourceType(source_type)
+        except ValueError:
+            return None
+    for descriptor in supported_platforms():
+        if source_type in descriptor.source_types:
+            return descriptor
+    return None
