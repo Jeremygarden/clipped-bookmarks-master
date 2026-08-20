@@ -2,7 +2,13 @@
 import tempfile
 from http.cookiejar import MozillaCookieJar, Cookie
 
-from scripts.fetch_text import fetch_html, parse_zhihu
+from scripts.fetch_text import detect_platform, fetch_html, parse_zhihu
+
+
+def test_detect_platform_uses_strict_zhihu_host():
+    assert detect_platform("https://www.zhihu.com/question/1") == "zhihu"
+    assert detect_platform("https://zhuanlan.zhihu.com/p/1") == "zhihu"
+    assert detect_platform("https://example.com/?u=zhihu.com/question/1") == "unknown"
 
 
 def test_fetch_text_parse_zhihu_uses_extractor():

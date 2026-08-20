@@ -27,9 +27,10 @@ from datetime import datetime
 from http.cookiejar import MozillaCookieJar
 
 try:
-    from clipped_bookmarks.extractors.zhihu import extract_zhihu
+    from clipped_bookmarks.extractors.zhihu import extract_zhihu, is_zhihu_url
 except ImportError:  # pragma: no cover - keeps standalone script usable
     extract_zhihu = None
+    is_zhihu_url = None
 
 try:
     import requests
@@ -49,7 +50,9 @@ HEADERS = {
 
 
 def detect_platform(url: str) -> str:
-    if "zhihu.com" in url:
+    if is_zhihu_url is not None and is_zhihu_url(url):
+        return "zhihu"
+    if is_zhihu_url is None and "zhihu.com" in url:
         return "zhihu"
     if "mp.weixin.qq.com" in url or "weixin.qq.com" in url:
         return "weixin"
