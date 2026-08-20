@@ -33,6 +33,7 @@ The P0 core adds a standard middle layer that platform extractors and renderers 
 - `clipped_bookmarks.renderers.markdown.render_markdown(item)` — renders Markdown with YAML frontmatter for downstream note systems.
 - `clipped_bookmarks.renderers.obsidian` — Obsidian export skeleton using `ObsidianExportConfig`; writing to a vault requires explicit `confirm=True`.
 - `clipped_bookmarks.cli` — minimal CLI for route → Markdown output and optional confirmed Obsidian export.
+- `references/core_handoff.md` — concise contract for platform-agent handoff boundaries and the active platform scope.
 
 Example:
 
@@ -57,6 +58,7 @@ clipped-bookmarks-master/
 │   ├── transcribe.sh           # Audio → timestamped transcript (OpenAI API or local whisper)
 │   └── batch_process.sh        # Batch-process a list of URLs
 └── references/
+    ├── core_handoff.md         # Core/platform-agent boundary and active scope
     ├── templates.md            # Markdown output templates (text & video)
     └── field_spec.md           # Per-platform field specs & cleaning rules
 ```
