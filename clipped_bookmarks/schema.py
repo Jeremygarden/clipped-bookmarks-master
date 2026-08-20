@@ -44,6 +44,17 @@ SUPPORTED_SOURCE_TYPES: tuple[SourceType, ...] = (
     SourceType.ZHIHU_ARTICLE,
 )
 
+
+SOURCE_TYPE_PLATFORM: dict[SourceType, Platform] = {
+    SourceType.WECHAT_ARTICLE: Platform.WECHAT_OFFICIAL_ACCOUNT,
+    SourceType.XIAOHONGSHU_NOTE: Platform.XIAOHONGSHU,
+    SourceType.XIAOHONGSHU_COLLECTION: Platform.XIAOHONGSHU,
+    SourceType.WECHAT_CHANNELS_FILE: Platform.WECHAT_CHANNELS,
+    SourceType.WECHAT_CHANNELS_VIDEO: Platform.WECHAT_CHANNELS,
+    SourceType.ZHIHU_ANSWER: Platform.ZHIHU,
+    SourceType.ZHIHU_ARTICLE: Platform.ZHIHU,
+}
+
 UNSUPPORTED_PLATFORMS: dict[str, str] = {
     "bilibili": "Bilibili support is intentionally out of scope for the core architecture.",
     "b23": "Bilibili short links are intentionally unsupported.",
@@ -93,6 +104,12 @@ class BookmarkItem:
             self.source_type = SourceType(self.source_type)
         if self.source_type not in SUPPORTED_SOURCE_TYPES:
             raise UnsupportedPlatformError(f"Unsupported source type: {self.source_type}")
+        expected_platform = SOURCE_TYPE_PLATFORM[self.source_type]
+        if self.platform != expected_platform:
+            raise ValueError(
+                f"Source type {self.source_type.value} belongs to platform "
+                f"{expected_platform.value}, not {self.platform.value}"
+            )
         if isinstance(self.published_at, datetime):
             self.published_at = self.published_at.isoformat()
 

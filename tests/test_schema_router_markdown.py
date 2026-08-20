@@ -139,3 +139,16 @@ def test_supported_platform_registry_matches_active_scope():
         Platform.ZHIHU,
     ]
     assert all("bilibili" not in descriptor.display_name.lower() for descriptor in descriptors)
+
+
+def test_bookmark_item_rejects_platform_source_type_mismatch():
+    try:
+        BookmarkItem(
+            url=WECHAT_SAMPLE,
+            platform=Platform.ZHIHU,
+            source_type=SourceType.WECHAT_ARTICLE,
+        )
+    except ValueError as exc:
+        assert "belongs to platform" in str(exc)
+    else:
+        raise AssertionError("BookmarkItem should reject mismatched platform/source_type")
