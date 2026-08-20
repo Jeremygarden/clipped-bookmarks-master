@@ -70,6 +70,12 @@ def test_short_link_expands_via_redirect_location():
     assert extractor.expand_short_link(XHS_SAMPLE) == "https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd"
 
 
+def test_xhslink_com_short_link_expands_too():
+    session = FakeSession([FakeResponse(status_code=302, headers={"Location": NOTE_URL})])
+    extractor = XiaohongshuExtractor(session=session, rate_limit_seconds=0)
+    assert extractor.expand_short_link("https://xhslink.com/a/abc") == "https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd"
+
+
 def test_parse_note_html_extracts_title_author_tags_and_media():
     parsed = parse_xhs_html(NOTE_HTML)
     assert parsed["title"] == "周末徒步路线｜风景很好"
@@ -153,3 +159,12 @@ def test_canonical_search_result_note_url_parsing_and_escaped_collection_url():
     assert extract_note_id(url) == "66abcdef000000001f03abcd"
     html = r'{"url":"https:\/\/www.xiaohongshu.com\/search_result\/66abcdef000000001f03abcd?xsec_source=pc_feed"}'
     assert extract_note_urls_from_html(html) == ["https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd"]
+
+
+def test_short_video_url_without_extension_is_kept_from_state():
+    html = '''<script id="__INITIAL_STATE__" type="application/json">{
+      "note": {"video": {"media": {"h265Url": "https:\\/\\/sns-video.xhscdn.com\\/stream\\/abc?sign=1", "fileSize": 12345}}}
+    }</script>'''
+    parsed = parse_xhs_html(html)
+    assert parsed["videos"] == ["https://sns-video.xhscdn.com/stream/abc?sign=1"]
+    assert parsed["video_assets"][0]["metadata"]["fileSize"] == 12345

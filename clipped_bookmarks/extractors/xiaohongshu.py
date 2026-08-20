@@ -75,7 +75,7 @@ class XiaohongshuExtractor:
 
     def expand_short_link(self, url: str) -> str:
         current = normalize_xhs_url(url)
-        if not urlparse(current).netloc.lower().endswith("xhslink.cn") or self.session is None:
+        if not _is_xhs_short_host(urlparse(current).netloc.lower()) or self.session is None:
             return current
         for _ in range(self.max_redirects):
             self._rate_limit()
@@ -83,7 +83,7 @@ class XiaohongshuExtractor:
             location = response.headers.get("Location") or response.headers.get("location")
             if location and 300 <= getattr(response, "status_code", 0) < 400:
                 current = urljoin(current, location)
-                if not urlparse(current).netloc.lower().endswith("xhslink.cn"):
+                if not _is_xhs_short_host(urlparse(current).netloc.lower()):
                     return normalize_xhs_url(current)
             elif getattr(response, "url", None) and response.url != current:
                 return normalize_xhs_url(response.url)
@@ -158,6 +158,7 @@ def normalize_xhs_url(url: str) -> str:
     if path.startswith("/search_result/") and qs.get("xsec_source", [""])[0] == "pc_feed":
         path = path.replace("/search_result/", "/explore/", 1)
     return urlunparse((scheme, netloc.lower(), path.rstrip("/"), "", "", ""))
+def _is_xhs_short_host(host: str) -> bool: return host.endswith("xhslink.cn") or host.endswith("xhslink.com")
 def is_collection_url(url: str) -> bool: return COLLECTION_PATH_RE.search(urlparse(url).path) is not None
 def extract_note_id(url: str) -> str | None: return (m.group(1) if (m := NOTE_PATH_RE.search(urlparse(url).path)) else None)
 def extract_collection_id(url: str) -> str | None: return (m.group(1) if (m := COLLECTION_PATH_RE.search(urlparse(url).path)) else None)
@@ -205,7 +206,7 @@ def _deep_first(obj: Any, keys: tuple[str, ...]) -> str | None:
     return None
 def _deep_media_assets(obj: Any, kind: str) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    url_keys = ("url", "urlDefault", "masterUrl", "backupUrl", "streamUrl", "originUrl", "traceId")
+    url_keys = ("url", "urlDefault", "masterUrl", "backupUrl", "streamUrl", "originUrl", "traceId", "h265Url", "h264Url", "videoUrl", "downloadUrl")
     if isinstance(obj, dict):
         urls: list[str] = []
         for k, v in obj.items():
@@ -228,7 +229,7 @@ def _urls_matching(value: str, kind: str) -> list[str]:
     if not v.startswith("http"): return []
     low = v.lower()
     if kind == "image" and (re.search(r"\.(jpg|jpeg|png|webp)(\?|$)", low) or "image" in low or "xhscdn.com" in low and "video" not in low): return [v]
-    if kind == "video" and (re.search(r"\.(mp4|m3u8)(\?|$)", low) or "video" in low): return [v]
+    if kind == "video" and (re.search(r"\.(mp4|m3u8)(\?|$)", low) or "video" in low or "sns-video" in low or "xhs-video" in low): return [v]
     return []
 
 def _merge_assets(first: list[dict[str, Any]], second: list[dict[str, Any]]) -> list[dict[str, Any]]:
