@@ -80,3 +80,31 @@ def test_obsidian_export_requires_confirmation(tmp_path: Path):
     written = export_to_obsidian(item, config, confirm=True)
     assert written.exists()
     assert written.parent == tmp_path / "Clipped Bookmarks"
+
+from clipped_bookmarks.cli import main as cli_main
+
+
+def test_cli_renders_markdown_to_stdout(capsys):
+    code = cli_main([WECHAT_SAMPLE])
+    captured = capsys.readouterr()
+    assert code == 0
+    assert 'source_type: "wechat_article"' in captured.out
+    assert WECHAT_SAMPLE in captured.out
+
+
+def test_cli_rejects_unsupported_bilibili(capsys):
+    code = cli_main(["https://www.bilibili.com/video/BV1xx411c7mD"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "Bilibili" in captured.err
+
+
+def test_cli_obsidian_requires_confirmation(tmp_path: Path, capsys):
+    code = cli_main([WECHAT_SAMPLE, "--obsidian-vault", str(tmp_path)])
+    captured = capsys.readouterr()
+    assert code == 4
+    assert "confirm=True" in captured.err
+
+    code = cli_main([WECHAT_SAMPLE, "--obsidian-vault", str(tmp_path), "--confirm-obsidian"])
+    assert code == 0
+    assert list((tmp_path / "Clipped Bookmarks").glob("*.md"))
