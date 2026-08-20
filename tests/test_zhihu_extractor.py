@@ -126,3 +126,28 @@ def test_question_multiple_answers_and_login_wall_detection():
     assert data["extra"]["comments_fallback"] == "login_required"
     assert data["raw_data"]["content_type"] == "question"
     assert data["raw_data"]["requires_login"] is True
+
+
+def test_video_pin_and_yanxuan_urls_report_fallback_ids_and_types():
+    video = extract_zhihu('<title>视频页 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/zvideo/456")
+    assert video["extra"]["content_type"] == "video"
+    assert video["extra"]["video_id"] == "456"
+    assert video["raw_data"]["video_id"] == "456"
+    assert video["extra"]["fallbacks"]["content"] == "dynamic_required"
+
+    pin = extract_zhihu('<title>想法页 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/pin/789")
+    assert pin["extra"]["content_type"] == "pin"
+    assert pin["extra"]["pin_id"] == "789"
+    assert pin["raw_data"]["pin_id"] == "789"
+
+    yanxuan = extract_zhihu('<title>盐选页 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/market/paid_column/111")
+    assert yanxuan["extra"]["content_type"] == "yanxuan"
+    assert yanxuan["extra"]["yanxuan_id"] == "111"
+    assert yanxuan["raw_data"]["yanxuan_id"] == "111"
+
+
+def test_zhuanlan_article_url_detected_as_article():
+    data = extract_zhihu('<title>专栏页 - 知乎</title><article><p>专栏正文</p></article>', "https://zhuanlan.zhihu.com/p/222")
+    assert data["extra"]["content_type"] == "article"
+    assert data["extra"]["article_id"] == "222"
+    assert data["raw_data"]["article_id"] == "222"

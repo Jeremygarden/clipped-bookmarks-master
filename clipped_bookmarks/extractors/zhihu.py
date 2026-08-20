@@ -26,7 +26,10 @@ LOGIN_WALL_PATTERNS = (
     "403 Forbidden",
 )
 
-ARTICLE_RE = re.compile(r"zhihu\.com/(?:p|zvideo)/(\d+)")
+ARTICLE_RE = re.compile(r"(?:zhihu\.com|zhuanlan\.zhihu\.com)/p/(\d+)")
+ZVIDEO_RE = re.compile(r"zhihu\.com/zvideo/(\d+)")
+PIN_RE = re.compile(r"zhihu\.com/pin/(\d+)")
+YANXUAN_RE = re.compile(r"zhihu\.com/(?:market/(?:paid_)?column|xen)/(\d+)")
 QUESTION_RE = re.compile(r"zhihu\.com/question/(\d+)(?:/answer/(\d+))?")
 
 
@@ -61,10 +64,17 @@ def parse_count(value: Any) -> Optional[int]:
 
 
 def detect_content_type(url: str, soup: BeautifulSoup) -> str:
+    if ZVIDEO_RE.search(url):
+        return "video"
+    if PIN_RE.search(url):
+        return "pin"
+    if YANXUAN_RE.search(url):
+        return "yanxuan"
     if ARTICLE_RE.search(url):
         return "article"
-    if QUESTION_RE.search(url):
-        return "answer" if QUESTION_RE.search(url).group(2) else "question"
+    question_match = QUESTION_RE.search(url)
+    if question_match:
+        return "answer" if question_match.group(2) else "question"
     if soup.select_one(".Post-RichTextContainer, article"):
         return "article"
     if soup.select_one(".QuestionHeader, .QuestionPage"):
@@ -176,14 +186,14 @@ def _timestamp(value: Any) -> str:
 
 
 def _item_from_json(obj: Dict[str, Any], fallback_title: str = "") -> Optional[Dict[str, Any]]:
-    content = strip_html(obj.get("content") or obj.get("excerpt") or obj.get("detail"))
+    content = strip_html(obj.get("content") or obj.get("excerpt") or obj.get("detail") or obj.get("description"))
     if not content and not (obj.get("title") or obj.get("question")):
         return None
     question = obj.get("question") if isinstance(obj.get("question"), dict) else {}
     title = clean_text(obj.get("title") or question.get("title") or fallback_title)
     publish_time = _timestamp(obj.get("created_time") or obj.get("created") or obj.get("updated_time"))
     upvote_count = parse_count(obj.get("voteup_count") or obj.get("upvoteCount") or obj.get("upvote_count") or obj.get("thanks_count"))
-    item_type = obj.get("type") or obj.get("content_type") or ("answer" if question else "article")
+    item_type = obj.get("type") or obj.get("content_type") or obj.get("target_type") or ("answer" if question else "article")
     raw_url = obj.get("url") or obj.get("origin_url") or ""
     raw_id = obj.get("id") or obj.get("answer_id") or obj.get("article_id") or ""
     return {
@@ -305,6 +315,9 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
     content_type = detect_content_type(url, soup)
     question_match = QUESTION_RE.search(url or "")
     article_match = ARTICLE_RE.search(url or "")
+    zvideo_match = ZVIDEO_RE.search(url or "")
+    pin_match = PIN_RE.search(url or "")
+    yanxuan_match = YANXUAN_RE.search(url or "")
     has_comment_dom = bool(soup.select_one(".CommentItem, [class*='CommentItem']"))
     dynamic_fallback = not bool(deduped) and not wall["requires_login"]
     if has_comment_dom:
@@ -319,6 +332,9 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
         "question_id": question_match.group(1) if question_match else "",
         "answer_id": question_match.group(2) if question_match and question_match.group(2) else (primary.get("id", "") if content_type == "answer" else ""),
         "article_id": article_match.group(1) if article_match else (primary.get("id", "") if content_type == "article" else ""),
+        "video_id": zvideo_match.group(1) if zvideo_match else (primary.get("id", "") if content_type == "video" else ""),
+        "pin_id": pin_match.group(1) if pin_match else (primary.get("id", "") if content_type == "pin" else ""),
+        "yanxuan_id": yanxuan_match.group(1) if yanxuan_match else (primary.get("id", "") if content_type == "yanxuan" else ""),
         "upvote_count": primary.get("upvote_count"),
         "items": deduped,
         "requires_login": wall["requires_login"],
@@ -333,6 +349,12 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
         "raw_data": {
             "url": url,
             "content_type": content_type,
+            "question_id": question_match.group(1) if question_match else "",
+            "answer_id": question_match.group(2) if question_match and question_match.group(2) else (primary.get("id", "") if content_type == "answer" else ""),
+            "article_id": article_match.group(1) if article_match else (primary.get("id", "") if content_type == "article" else ""),
+            "video_id": zvideo_match.group(1) if zvideo_match else (primary.get("id", "") if content_type == "video" else ""),
+            "pin_id": pin_match.group(1) if pin_match else (primary.get("id", "") if content_type == "pin" else ""),
+            "yanxuan_id": yanxuan_match.group(1) if yanxuan_match else (primary.get("id", "") if content_type == "yanxuan" else ""),
             "item_count": len(deduped),
             "requires_login": wall["requires_login"],
             "anti_bot": wall["anti_bot"],

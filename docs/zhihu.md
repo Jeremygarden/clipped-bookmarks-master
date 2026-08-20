@@ -15,6 +15,7 @@
 1. 回答页：`https://www.zhihu.com/question/<qid>/answer/<aid>`
 2. 文章页：`https://zhuanlan.zhihu.com/p/<article_id>` / `https://www.zhihu.com/p/<article_id>`
 3. 问题页多回答：`https://www.zhihu.com/question/<qid>`，会在 `extra.items` 中返回多个回答候选
+4. 想法 / 视频 / 盐选类 URL：`/pin/<id>`、`/zvideo/<id>`、`/market/paid_column/<id>` 等会识别类型和 ID；正文通常依赖动态渲染，当前以明确 fallback 状态返回
 
 解析优先级：
 
@@ -47,3 +48,8 @@ python3 scripts/fetch_text.py 'https://www.zhihu.com/question/...' --cookies coo
 `extra.fallbacks` 与顶层 `raw_data` 会同步记录 content/comments fallback，方便后续 BookmarkItem 入库或人工复查。
 
 后续如接入评论接口，应保持现有顶层字段不变，把接口状态放入 `extra`。
+
+
+## 受限类型 fallback
+
+想法、视频、盐选等页面经常不在初始 HTML 中给出完整正文。当前实现不会伪造内容；会在 `extra.content_type`、对应 `*_id`、`extra.dynamic_fallback`、`extra.fallbacks.content` 与顶层 `raw_data` 中记录状态，便于后续登录态/动态渲染/接口抓取补全。
