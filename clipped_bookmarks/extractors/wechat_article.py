@@ -238,7 +238,19 @@ def extract_wechat_article(html: str, url: str = "") -> Dict[str, Any]:
     title, author = extract_title(soup, html or ""), extract_author(soup, html or "")
     publish_time = extract_publish_time(soup, html or "")
     content_result = extract_content(soup); content = content_result["content"]
-    images = extract_images(soup); comment_result = extract_comments(soup, html or "")
+    description = _meta(soup, "og:description", "description", "twitter:description")
+    canonical_url = _meta(soup, "og:url") or url
+    images = extract_images(soup)
+
+    # WeChat sometimes exposes only a cover image in metadata before client-side
+    # hydration. Keep it as a media candidate, but do not duplicate article images.
+    cover_url = _normalise_image_url(_meta(soup, "og:image", "twitter:image"))
+    if cover_url and not any(image["url"] == cover_url for image in images):
+        images.insert(0, {"url": cover_url, "alt": title, "index": 0, "source_attr": "meta.og:image", "needs_ocr": False, "ocr_hook": {"enabled": False, "reason": "cover_image_metadata"}})
+        for index, image in enumerate(images):
+            image["index"] = index
+
+    comment_result = extract_comments(soup, html or "")
     risk_flags = detect_risks(html or "", soup, content)
-    raw_data = {"url": url, "source_url": url, "canonical_url": _meta(soup, "og:url") or url, "platform": PLATFORM, "title": title, "author": author, "publish_time": publish_time, "content": content, "images": images, "top_comments": comment_result["comments"], "risk_flags": risk_flags, "comment_status": comment_result["status"]}
-    return {"platform": PLATFORM, "title": title, "author": author, "publish_time": publish_time, "content": content, "top_comments": comment_result["comments"], "raw_html_len": len(html or ""), "images": images, "risk_flags": risk_flags, "raw_data": raw_data, "extra": {"content_type": "wechat_article", "comment_status": comment_result["status"], "cleaning": content_result["cleaning"], "image_ocr_hook": "images[].ocr_hook", "requires_login": "requires_login" in risk_flags, "anti_bot": "anti_bot" in risk_flags, "sample_url_supported": "mp.weixin.qq.com/s/" in url}}
+    raw_data = {"url": url, "source_url": url, "canonical_url": canonical_url, "platform": PLATFORM, "title": title, "author": author, "publish_time": publish_time, "description": description, "content": content, "images": images, "top_comments": comment_result["comments"], "risk_flags": risk_flags, "comment_status": comment_result["status"]}
+    return {"platform": PLATFORM, "title": title, "author": author, "publish_time": publish_time, "content": content, "top_comments": comment_result["comments"], "raw_html_len": len(html or ""), "images": images, "risk_flags": risk_flags, "raw_data": raw_data, "extra": {"content_type": "wechat_article", "canonical_url": canonical_url, "description": description, "comment_status": comment_result["status"], "cleaning": content_result["cleaning"], "image_ocr_hook": "images[].ocr_hook", "requires_login": "requires_login" in risk_flags, "anti_bot": "anti_bot" in risk_flags, "sample_url_supported": "mp.weixin.qq.com/s/" in url}}
