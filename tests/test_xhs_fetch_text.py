@@ -3,7 +3,13 @@ from scripts.fetch_text import detect_platform, parse_xiaohongshu
 
 def test_fetch_text_detects_xiaohongshu_urls():
     assert detect_platform("https://xhslink.cn/o/abc") == "xiaohongshu"
+    assert detect_platform("https://xhslink.com/a/abc") == "xiaohongshu"
     assert detect_platform("https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd") == "xiaohongshu"
+
+
+def test_fetch_text_marks_bilibili_unsupported_before_fetching():
+    assert detect_platform("https://www.bilibili.com/video/BV1xx411c7mD") == "unsupported"
+    assert detect_platform("https://b23.tv/abc") == "unsupported"
 
 
 def test_parse_xiaohongshu_keeps_fetch_text_contract():

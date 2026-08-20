@@ -43,11 +43,14 @@ HEADERS = {
 
 
 def detect_platform(url: str) -> str:
-    if "zhihu.com" in url:
+    lower = url.lower()
+    if "bilibili.com" in lower or "b23.tv" in lower:
+        return "unsupported"
+    if "zhihu.com" in lower:
         return "zhihu"
-    if "mp.weixin.qq.com" in url or "weixin.qq.com" in url:
+    if "mp.weixin.qq.com" in lower or "weixin.qq.com" in lower:
         return "weixin"
-    if "xiaohongshu.com" in url or "xhslink.cn" in url or "xhslink.com" in url:
+    if "xiaohongshu.com" in lower or "xhslink.cn" in lower or "xhslink.com" in lower:
         return "xiaohongshu"
     return "unknown"
 
@@ -209,6 +212,10 @@ def main():
     args = ap.parse_args()
 
     platform = detect_platform(args.url)
+    if platform == "unsupported":
+        sys.stderr.write("[错误] 不支持的平台：Bilibili/b23.tv 不在当前核心范围内\n")
+        sys.exit(2)
+
     try:
         html = fetch_html(args.url, args.cookies)
     except Exception as e:  # noqa
