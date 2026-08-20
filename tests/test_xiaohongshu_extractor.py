@@ -3,6 +3,7 @@ from __future__ import annotations
 from clipped_bookmarks.extractors.xiaohongshu import (
     XiaohongshuExtractor,
     detect_access_wall,
+    extract_note_id,
     extract_note_urls_from_html,
     normalize_xhs_url,
     parse_xhs_html,
@@ -128,3 +129,27 @@ def test_ocr_hook_is_pluggable_and_stubbed():
     assert XiaohongshuExtractor(rate_limit_seconds=0).ocr_image(b"image") is None
     extractor = XiaohongshuExtractor(ocr_hook=lambda b, mime: "识别文本", rate_limit_seconds=0)
     assert extractor.ocr_image(b"image", "image/png") == "识别文本"
+
+
+def test_parse_json_state_variants_and_media_metadata():
+    html = '''<script id="__NEXT_DATA__" type="application/json">{
+      "note": {"displayTitle":"JSON标题", "desc":"正文 #标签", "user":{"nickName":"作者"},
+        "imageList":[{"urlDefault":"https:\\/\\/sns-img.xhscdn.com\\/abc.jpg?x=1", "width":1080, "height":1440}],
+        "video":{"media":{"streamUrl":"https:\\/\\/sns-video.xhscdn.com\\/abc.m3u8", "duration":12}}
+      }}
+    </script>'''
+    parsed = parse_xhs_html(html)
+    assert parsed["title"] == "JSON标题"
+    assert parsed["author"] == "作者"
+    assert parsed["images"] == ["https://sns-img.xhscdn.com/abc.jpg?x=1"]
+    assert parsed["videos"] == ["https://sns-video.xhscdn.com/abc.m3u8"]
+    assert parsed["image_assets"][0]["metadata"]["width"] == 1080
+    assert parsed["video_assets"][0]["metadata"]["duration"] == 12
+
+
+def test_canonical_search_result_note_url_parsing_and_escaped_collection_url():
+    url = "https://www.xiaohongshu.com/search_result/66abcdef000000001f03abcd?xsec_source=pc_feed&xsec_token=t"
+    assert normalize_xhs_url(url) == "https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd"
+    assert extract_note_id(url) == "66abcdef000000001f03abcd"
+    html = r'{"url":"https:\/\/www.xiaohongshu.com\/search_result\/66abcdef000000001f03abcd?xsec_source=pc_feed"}'
+    assert extract_note_urls_from_html(html) == ["https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd"]
