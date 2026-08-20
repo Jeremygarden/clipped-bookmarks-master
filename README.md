@@ -68,13 +68,13 @@ python3 scripts/fetch_text.py "https://www.zhihu.com/question/633780178/answer/1
 # from the raw JSON using references/templates.md
 ```
 
+### 3. Process a WeChat Video Channels File (Video)
+
+WeChat Video Channels has no stable public download API. If you have a Channels link, ask the user to upload/export the video file first; then run the local media pipeline:
 
 ```bash
-# Download
-  --dir ./downloads
-
-# Extract audio
-bash scripts/extract_audio.sh downloads/some_video.mp4
+# Extract audio from an uploaded/exported Channels video file
+bash scripts/extract_audio.sh downloads/wechat_channels_video.mp4
 
 # Transcribe (OpenAI Whisper API — requires OPENAI_API_KEY)
 export OPENAI_API_KEY="sk-..."
