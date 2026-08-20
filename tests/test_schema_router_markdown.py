@@ -39,3 +39,44 @@ def test_bilibili_is_unsupported():
         assert "Bilibili" in str(exc)
     else:
         raise AssertionError("Bilibili should be unsupported")
+
+from pathlib import Path
+
+from clipped_bookmarks.renderers.markdown import render_markdown
+from clipped_bookmarks.renderers.obsidian import ObsidianExportConfig, export_to_obsidian
+from clipped_bookmarks.schema import BookmarkItem
+
+
+def test_markdown_renderer_outputs_yaml_frontmatter():
+    item = BookmarkItem(
+        url=WECHAT_SAMPLE,
+        platform=Platform.WECHAT_OFFICIAL_ACCOUNT,
+        source_type=SourceType.WECHAT_ARTICLE,
+        title="Sample Article",
+        author="Author A",
+        published_at="2026-08-20",
+        content="Body text",
+        tags=["wechat", "bookmark notes"],
+    )
+    markdown = render_markdown(item)
+    assert markdown.startswith("---\n")
+    assert 'title: "Sample Article"' in markdown
+    assert 'platform: "wechat_official_account"' in markdown
+    assert "## Content\n\nBody text" in markdown
+    assert "#wechat #bookmark-notes" in markdown
+
+
+def test_obsidian_export_requires_confirmation(tmp_path: Path):
+    item = route_url(WECHAT_SAMPLE)
+    item.title = "Needs Confirmation"
+    config = ObsidianExportConfig(vault_path=tmp_path)
+    try:
+        export_to_obsidian(item, config)
+    except PermissionError as exc:
+        assert "confirm=True" in str(exc)
+    else:
+        raise AssertionError("Obsidian export should require explicit confirmation")
+
+    written = export_to_obsidian(item, config, confirm=True)
+    assert written.exists()
+    assert written.parent == tmp_path / "Clipped Bookmarks"
