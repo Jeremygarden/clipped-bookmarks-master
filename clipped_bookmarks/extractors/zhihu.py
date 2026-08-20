@@ -305,6 +305,15 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
     content_type = detect_content_type(url, soup)
     question_match = QUESTION_RE.search(url or "")
     article_match = ARTICLE_RE.search(url or "")
+    has_comment_dom = bool(soup.select_one(".CommentItem, [class*='CommentItem']"))
+    dynamic_fallback = not bool(deduped) and not wall["requires_login"]
+    if has_comment_dom:
+        comments_fallback = "dom"
+    elif wall["requires_login"] or wall["anti_bot"]:
+        comments_fallback = "login_required"
+    else:
+        comments_fallback = "api_or_dynamic_required"
+
     extra = {
         "content_type": content_type,
         "question_id": question_match.group(1) if question_match else "",
@@ -315,9 +324,21 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
         "requires_login": wall["requires_login"],
         "anti_bot": wall["anti_bot"],
         "login_wall_markers": wall["markers"],
-        "dynamic_fallback": not bool(deduped) and not wall["requires_login"],
-        "comments_fallback": "dom" if soup.select_one(".CommentItem, [class*='CommentItem']") else "api_or_login_required",
-        "raw_data": {"url": url, "content_type": content_type, "item_count": len(deduped)},
+        "dynamic_fallback": dynamic_fallback,
+        "comments_fallback": comments_fallback,
+        "fallbacks": {
+            "content": "json_or_dom" if deduped else ("login_required" if wall["requires_login"] else "dynamic_required"),
+            "comments": comments_fallback,
+        },
+        "raw_data": {
+            "url": url,
+            "content_type": content_type,
+            "item_count": len(deduped),
+            "requires_login": wall["requires_login"],
+            "anti_bot": wall["anti_bot"],
+            "dynamic_fallback": dynamic_fallback,
+            "comments_fallback": comments_fallback,
+        },
     }
 
     return {

@@ -46,6 +46,23 @@ def test_bookmark_item_compatible_top_level_fields_are_stable():
     assert data["extra"]["dynamic_fallback"] is True
 
 
+def test_dynamic_and_comment_fallbacks_are_reported_in_extra_and_raw_data():
+    data = extract_zhihu('<html><body><div id="root"></div></body></html>', "https://www.zhihu.com/question/404")
+    assert data["extra"]["dynamic_fallback"] is True
+    assert data["extra"]["comments_fallback"] == "api_or_dynamic_required"
+    assert data["extra"]["fallbacks"]["content"] == "dynamic_required"
+    assert data["raw_data"]["dynamic_fallback"] is True
+    assert data["raw_data"]["comments_fallback"] == "api_or_dynamic_required"
+
+
+def test_anti_bot_page_reports_login_required_comment_fallback():
+    data = extract_zhihu('<html><body>安全验证 请完成验证 captcha</body></html>', "https://www.zhihu.com/question/1")
+    assert data["extra"]["requires_login"] is True
+    assert data["extra"]["anti_bot"] is True
+    assert data["extra"]["comments_fallback"] == "login_required"
+    assert data["raw_data"]["anti_bot"] is True
+
+
 def test_article_from_initial_state():
     state = {
         "entities": {
@@ -106,4 +123,6 @@ def test_question_multiple_answers_and_login_wall_detection():
     assert data["extra"]["question_id"] == "123"
     assert len(data["extra"]["items"]) == 2
     assert data["extra"]["requires_login"] is True
+    assert data["extra"]["comments_fallback"] == "login_required"
     assert data["raw_data"]["content_type"] == "question"
+    assert data["raw_data"]["requires_login"] is True

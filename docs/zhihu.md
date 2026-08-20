@@ -7,7 +7,8 @@
 - `top_comments`: DOM 中可见评论的前 5 条
 - `raw_html_len`
 - `upvote_count`: 与 `publish_time` 分离，不再误写入发布时间
-- `extra`: 知乎专用补充数据
+- `raw_data`: BookmarkItem-compatible 原始补充数据（URL、类型、fallback 状态等）
+- `extra`: 知乎专用补充数据，包含 `raw_data` 的同源细节以及 `items`
 
 ## 支持场景
 
@@ -39,6 +40,10 @@ python3 scripts/fetch_text.py 'https://www.zhihu.com/question/...' --cookies coo
 
 知乎评论经常由接口动态加载。当前实现只解析 HTML 中已出现的评论；否则：
 
-- `extra.comments_fallback = "api_or_login_required"`
+- `extra.comments_fallback = "dom"`: HTML 已含评论并完成解析
+- `extra.comments_fallback = "login_required"`: 页面命中登录墙/反爬，评论也需要登录态或人工授权
+- `extra.comments_fallback = "api_or_dynamic_required"`: HTML 无评论，需要后续接口/动态内容能力
+
+`extra.fallbacks` 与顶层 `raw_data` 会同步记录 content/comments fallback，方便后续 BookmarkItem 入库或人工复查。
 
 后续如接入评论接口，应保持现有顶层字段不变，把接口状态放入 `extra`。
