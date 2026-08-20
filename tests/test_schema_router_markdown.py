@@ -123,9 +123,15 @@ def test_cli_obsidian_requires_confirmation(tmp_path: Path, capsys):
 
 
 def test_supported_platform_registry_matches_active_scope():
-    from clipped_bookmarks.platforms import supported_platforms
+    from clipped_bookmarks.platforms import ACTIVE_PLATFORM_SCOPE, supported_platforms
 
     descriptors = supported_platforms()
+    assert ACTIVE_PLATFORM_SCOPE == (
+        Platform.XIAOHONGSHU,
+        Platform.WECHAT_CHANNELS,
+        Platform.WECHAT_OFFICIAL_ACCOUNT,
+        Platform.ZHIHU,
+    )
     assert [descriptor.platform for descriptor in descriptors] == [
         Platform.XIAOHONGSHU,
         Platform.WECHAT_CHANNELS,

@@ -24,6 +24,14 @@ class PlatformDescriptor:
     notes: str = ""
 
 
+ACTIVE_PLATFORM_SCOPE: tuple[Platform, ...] = (
+    Platform.XIAOHONGSHU,
+    Platform.WECHAT_CHANNELS,
+    Platform.WECHAT_OFFICIAL_ACCOUNT,
+    Platform.ZHIHU,
+)
+
+
 SUPPORTED_PLATFORM_REGISTRY: dict[Platform, PlatformDescriptor] = {
     Platform.XIAOHONGSHU: PlatformDescriptor(
         platform=Platform.XIAOHONGSHU,
@@ -60,7 +68,7 @@ SUPPORTED_PLATFORM_REGISTRY: dict[Platform, PlatformDescriptor] = {
 def supported_platforms() -> tuple[PlatformDescriptor, ...]:
     """Return supported platform descriptors in a stable documentation order."""
 
-    return tuple(SUPPORTED_PLATFORM_REGISTRY.values())
+    return tuple(SUPPORTED_PLATFORM_REGISTRY[platform] for platform in ACTIVE_PLATFORM_SCOPE)
 
 
 def is_supported_platform(platform: Platform | str) -> bool:
