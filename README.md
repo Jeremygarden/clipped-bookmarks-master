@@ -4,11 +4,11 @@
 
 ## Overview
 
-**Clipped Bookmarks Master** is a CodeBuddy Skill that routes and renders saved/liked posts across the current core scope: **WeChat Official Accounts, Xiaohongshu (RED), Xiaohongshu collections, and WeChat Video Channels files/videos**, cleans them up, and outputs structured Markdown notes.
+**Clipped Bookmarks Master** is a CodeBuddy Skill that routes and renders saved/liked posts across the current core scope: **WeChat Official Accounts, Xiaohongshu (RED), Xiaohongshu collections, WeChat Video Channels files/videos, and Zhihu**, cleans them up, and outputs structured Markdown notes.
 
 | Content Type | Platforms | What It Does |
 |-------------|-----------|--------------|
-| **Text** | WeChat Official Accounts | Fetches body text → strips ads/noise → keeps core arguments |
+| **Text** | WeChat Official Accounts, Zhihu | Fetches body text → strips ads/noise → keeps core arguments |
 | **Image/Text/Video** | Xiaohongshu notes, Xiaohongshu collections | Routes note/collection URLs into the shared `BookmarkItem` schema for extractor/rendering stages |
 | **Video** | WeChat Video Channels files/videos | User-provided file or supported video source → transcription pipeline → structured notes |
 
@@ -20,13 +20,13 @@
 | [Xiaohongshu](https://www.xiaohongshu.com) notes / `xhslink.cn` | Image/Text/Video | Supported | Routes as `xiaohongshu_note`; short links are marked `requires_expansion`. |
 | Xiaohongshu collection item URLs | Collection | Supported | Routes as `xiaohongshu_collection`. |
 | WeChat Video Channels | File / Video | Supported | User-provided video files route as `wechat_channels_file`; channel video URLs route as `wechat_channels_video`. |
-| Zhihu | Text | Unsupported in current core scope | Intentionally excluded from this P0 core architecture branch. |
+| Zhihu (`zhihu.com/question/.../answer/...`, `zhuanlan.zhihu.com/p/...`) | Text | Supported | Routes as `zhihu_answer` or `zhihu_article`; extraction remains platform-agent work. |
 | Bilibili / `b23.tv` | Video | Unsupported in current core scope | Router raises `UnsupportedPlatformError`; Bilibili is not part of the supported core. |
 
 
 ## Core Architecture
 
-The P0 core adds a standard middle layer that platform extractors and renderers share:
+The P0 core adds a standard middle layer that platform extractors and renderers share. The active supported platforms are Xiaohongshu, WeChat Video Channels files/videos, WeChat Official Accounts, and Zhihu; Bilibili is intentionally unsupported.
 
 - `clipped_bookmarks.schema.BookmarkItem` — unified schema for `url`, `platform`, `source_type`, `title`, `author`, `published_at`, `content`, `summary`, `tags`, `assets`, `metadata`, `status`, and `errors`.
 - `clipped_bookmarks.router.route_url(source)` — detects supported URLs/files and rejects unsupported platforms such as Bilibili with `UnsupportedPlatformError`.
@@ -39,6 +39,7 @@ Example:
 ```bash
 python3 -m clipped_bookmarks.cli "https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA" --out note.md
 python3 -m clipped_bookmarks.cli "https://xhslink.cn/o/2HSnq3KBHMZ"
+python3 -m clipped_bookmarks.cli "https://www.zhihu.com/question/123456/answer/789012"
 python3 -m clipped_bookmarks.cli ./wechat-channel-video.mp4 --obsidian-vault ~/Vault --confirm-obsidian
 ```
 

@@ -18,9 +18,10 @@ updated: "2026-08-19"
 满足任一条件即触发：
 
 - 用户给出了以下平台的链接：
-  - 小红书 `xiaohongshu.com` / `xhslink.com`
+  - 小红书 `xiaohongshu.com` / `xhslink.cn`
   - 微信视频号（用户直接粘贴的视频号链接 / 文件）
   - 微信公众号 `mp.weixin.qq.com`
+  - 知乎回答/专栏 `zhihu.com` / `zhuanlan.zhihu.com`
 - 用户说："整理我的收藏"、"把收藏夹转成笔记"、"收藏的内容总结一下"、"帮我把点赞过的保存成笔记"
 
 ## When NOT to Use
@@ -38,7 +39,7 @@ updated: "2026-08-19"
         ▼
 1. 通过 `clipped_bookmarks.router.route_url()` 识别平台与内容类型，得到统一 `BookmarkItem`
         │
-        ├─ 文字类（公众号） ──► 步骤 A
+        ├─ 文字类（公众号 / 知乎） ──► 步骤 A
         ├─ 小红书笔记/合集 ──► 对应 extractor / OCR / 下载流程
         └─ 视频类（小红书、视频号） ──► 步骤 B
         │
@@ -52,7 +53,7 @@ updated: "2026-08-19"
 4. 输出标准 Markdown 笔记（保存到 <output_dir>）
 ```
 
-### 步骤 A：文字类处理（公众号）
+### 步骤 A：文字类处理（公众号 / 知乎）
 
 1. 用 `scripts/fetch_text.py <url>` 抓取正文 HTML 并提取纯文本/结构化内容，并映射到 `BookmarkItem`。
 2. 清洗规则（必须执行）：
@@ -86,7 +87,7 @@ updated: "2026-08-19"
 | 小红书收藏合集 | Collection | `route_url()` → collection extractor | 仅 `xiaohongshu.com/collection/item/...` 属于当前核心支持 |
 | 微信视频号 | 文件/视频 | 用户上传文件 或 粘贴支持的视频链接 | 无官方 API，优先让用户发文件；Obsidian 写入需显式确认 |
 | 微信公众号 | 文字 | `fetch_text.py` | 清洗二维码引流、阅读原文引导；保留作者与发布时间 |
-| 知乎 | 文字 | `route_url()` → zhihu extractor | 支持问题回答与专栏文章，抽取由平台 agent 完成 |
+| 知乎 | 文字 | `route_url()` → zhihu extractor | 支持问题回答与专栏文章，抽取由平台 agent 完成；清洗盐选/广告/相关推荐 |
 | B站 / b23.tv | — | Unsupported | Router 必须报 unsupported，不新增 B站支持 |
 
 
@@ -126,11 +127,11 @@ updated: "2026-08-19"
 
 ### 示例 1：知乎回答（文字类）
 
-用户给出：`https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA`
+用户给出：`https://www.zhihu.com/question/123456/answer/789012`
 
-1. `python3 -m clipped_bookmarks.cli "https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA" --out note.md`
-2. 清洗广告与无关评论，保留作者核心观点
-3. 按文字类模板输出 `bookmarks_notes/微信公众号_xxxx.md`
+1. `python3 -m clipped_bookmarks.cli "https://www.zhihu.com/question/123456/answer/789012" --out note.md`
+2. 平台 extractor 抽取回答/专栏正文；清洗广告与无关评论，保留作者核心观点
+3. 按文字类模板输出 `bookmarks_notes/zhihu/知乎_xxxx.md`
 
 ### 示例 2：微信视频号文件（视频类，需时间戳）
 
