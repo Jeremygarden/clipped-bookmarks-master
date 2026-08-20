@@ -58,6 +58,7 @@ SOURCE_TYPE_PLATFORM: dict[SourceType, Platform] = {
 UNSUPPORTED_PLATFORMS: dict[str, str] = {
     "bilibili": "Bilibili support is intentionally out of scope for the core architecture.",
     "b23": "Bilibili short links are intentionally unsupported.",
+    "bili2233": "Bilibili app share links are intentionally unsupported.",
 }
 
 

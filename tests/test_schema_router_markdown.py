@@ -152,3 +152,13 @@ def test_bookmark_item_rejects_platform_source_type_mismatch():
         assert "belongs to platform" in str(exc)
     else:
         raise AssertionError("BookmarkItem should reject mismatched platform/source_type")
+
+
+def test_bilibili_short_links_are_unsupported():
+    for source in ("https://b23.tv/BV1xx411c7mD", "https://bili2233.cn/abc"):
+        try:
+            route_url(source)
+        except UnsupportedPlatformError as exc:
+            assert "Bilibili" in str(exc)
+        else:
+            raise AssertionError(f"Bilibili share link should be unsupported: {source}")
