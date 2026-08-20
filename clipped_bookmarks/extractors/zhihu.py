@@ -44,7 +44,7 @@ YANXUAN_RE = re.compile(r"zhihu\.com/(?:market/(?:paid_)?column|xen)/(\d+)")
 PEOPLE_RE = re.compile(r"zhihu\.com/people/([^/?#]+)")
 COLLECTION_RE = re.compile(r"zhihu\.com/collection/(\d+)")
 QUESTION_RE = re.compile(r"zhihu\.com/question/(\d+)(?:/answer/(\d+))?")
-ZHihu_HOSTS = ("zhihu.com", "www.zhihu.com", "zhuanlan.zhihu.com")
+ZHIHU_HOSTS = ("zhihu.com", "www.zhihu.com", "zhuanlan.zhihu.com")
 
 
 def is_zhihu_url(url: str) -> bool:
@@ -53,7 +53,7 @@ def is_zhihu_url(url: str) -> bool:
         host = urlparse(url).netloc.lower().split(":", 1)[0]
     except Exception:
         return False
-    return host in ZHihu_HOSTS
+    return host in ZHIHU_HOSTS
 
 
 def clean_text(value: str) -> str:
@@ -74,14 +74,21 @@ def parse_count(value: Any) -> Optional[int]:
     text = clean_text(str(value)).replace(",", "")
     if not text:
         return None
-    m = re.search(r"(\d+(?:\.\d+)?)\s*(万|千|k|K)?", text)
+    # Prefer Chinese large-number units when both 万 and 千 appear, e.g.
+    # "1 万 2 千赞同" should mean 12,000 rather than 10,000.
+    cn_units = re.findall(r"(\d+(?:\.\d+)?)\s*(万|千)", text)
+    if cn_units:
+        total = 0.0
+        for raw_number, unit in cn_units:
+            multiplier = 10000 if unit == "万" else 1000
+            total += float(raw_number) * multiplier
+        return int(total)
+
+    m = re.search(r"(\d+(?:\.\d+)?)\s*([kK])?", text)
     if not m:
         return None
     number = float(m.group(1))
-    unit = m.group(2)
-    if unit == "万":
-        number *= 10000
-    elif unit in {"千", "k", "K"}:
+    if m.group(2):
         number *= 1000
     return int(number)
 

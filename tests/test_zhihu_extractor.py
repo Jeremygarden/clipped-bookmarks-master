@@ -14,6 +14,7 @@ def test_parse_count_zhihu_units():
     assert parse_count("1,234 赞同") == 1234
     assert parse_count("1.2 万赞同") == 12000
     assert parse_count("3K") == 3000
+    assert parse_count("1 万 2 千赞同") == 12000
     assert parse_count(42) == 42
 
 
