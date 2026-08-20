@@ -6,6 +6,12 @@ XHS_SAMPLE = "https://xhslink.cn/o/2HSnq3KBHMZ"
 XHS_COLLECTION_SAMPLE = "https://www.xiaohongshu.com/collection/item/68930d3b02f5000000000001?xhsshare=&appuid=5e7f4c87000000000100a104&apptime=1787213955&share_id=b4a00b1e38444f21b696260e9df07c6b&share_channel=copy_link"
 
 
+def test_routes_zhihu_answer_sample():
+    item = route_url("https://www.zhihu.com/question/633780178/answer/1997868452766058023")
+    assert item.platform == Platform.ZHIHU
+    assert item.source_type == SourceType.ZHIHU_ANSWER
+
+
 def test_routes_wechat_article_sample():
     item = route_url(WECHAT_SAMPLE)
     assert item.platform == Platform.WECHAT_OFFICIAL_ACCOUNT

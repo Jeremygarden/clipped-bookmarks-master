@@ -19,12 +19,15 @@ class UnsupportedPlatformError(ValueError):
 
 class Platform(str, Enum):
     WECHAT_OFFICIAL_ACCOUNT = "wechat_official_account"
+    ZHIHU = "zhihu"
     XIAOHONGSHU = "xiaohongshu"
     WECHAT_CHANNELS = "wechat_channels"
 
 
 class SourceType(str, Enum):
     WECHAT_ARTICLE = "wechat_article"
+    ZHIHU_ANSWER = "zhihu_answer"
+    ZHIHU_ARTICLE = "zhihu_article"
     XIAOHONGSHU_NOTE = "xiaohongshu_note"
     XIAOHONGSHU_COLLECTION = "xiaohongshu_collection"
     WECHAT_CHANNELS_FILE = "wechat_channels_file"
@@ -33,6 +36,8 @@ class SourceType(str, Enum):
 
 SUPPORTED_SOURCE_TYPES: tuple[SourceType, ...] = (
     SourceType.WECHAT_ARTICLE,
+    SourceType.ZHIHU_ANSWER,
+    SourceType.ZHIHU_ARTICLE,
     SourceType.XIAOHONGSHU_NOTE,
     SourceType.XIAOHONGSHU_COLLECTION,
     SourceType.WECHAT_CHANNELS_FILE,
@@ -40,9 +45,8 @@ SUPPORTED_SOURCE_TYPES: tuple[SourceType, ...] = (
 )
 
 UNSUPPORTED_PLATFORMS: dict[str, str] = {
-    "bilibili": "Bilibili support is intentionally out of scope for the core architecture.",
+    "bilibili": "Bilibili support is intentionally out of scope.",
     "b23": "Bilibili short links are intentionally unsupported.",
-    "zhihu": "Zhihu support is not part of this core architecture scope.",
 }
 
 

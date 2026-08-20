@@ -15,6 +15,7 @@ def route_url(source: str) -> BookmarkItem:
     """Return a skeleton BookmarkItem for a supported URL or local media file.
 
     Supported core sources are limited to:
+    - Zhihu answers/articles
     - WeChat Official Account articles (mp.weixin.qq.com/s/...)
     - Xiaohongshu note links (xhslink.cn, xiaohongshu.com/explore|discovery/item)
     - Xiaohongshu collection item links (xiaohongshu.com/collection/item/...)
@@ -40,6 +41,14 @@ def route_url(source: str) -> BookmarkItem:
     parsed = urlparse(source)
     host = parsed.netloc.lower()
     path = parsed.path.lower()
+
+    if host.endswith("zhihu.com"):
+        return BookmarkItem(
+            url=source,
+            platform=Platform.ZHIHU,
+            source_type=SourceType.ZHIHU_ARTICLE if path.startswith("/p/") else SourceType.ZHIHU_ANSWER,
+            metadata={"input_kind": "url"},
+        )
 
     if host == "mp.weixin.qq.com" and path.startswith("/s"):
         return BookmarkItem(

@@ -26,7 +26,7 @@ updated: "2026-08-19"
 ## When NOT to Use
 
 - 用户给的是非上述平台的普通网页（此时走通用网页抓取流程，不加载本 Skill）
-- 用户给的是知乎、B站 / b23.tv 链接：当前核心架构明确不支持，应告知 unsupported，不要绕过 router
+- 用户给的是 B站 / b23.tv 链接：当前明确不支持，应告知 unsupported，不要绕过 router
 - 用户只是想浏览链接，没有"保存 / 整理 / 转笔记"意图
 - 链接为付费墙 / 登录后才能看、且无法获取内容时——应如实告知用户，不要编造内容
 
@@ -38,7 +38,7 @@ updated: "2026-08-19"
         ▼
 1. 通过 `clipped_bookmarks.router.route_url()` 识别平台与内容类型，得到统一 `BookmarkItem`
         │
-        ├─ 文字类（公众号） ──► 步骤 A
+        ├─ 文字类（知乎 / 公众号） ──► 步骤 A
         ├─ 小红书笔记/合集 ──► 对应 extractor / OCR / 下载流程
         └─ 视频类（小红书、视频号） ──► 步骤 B
         │
@@ -52,7 +52,7 @@ updated: "2026-08-19"
 4. 输出标准 Markdown 笔记（保存到 <output_dir>）
 ```
 
-### 步骤 A：文字类处理（公众号）
+### 步骤 A：文字类处理（知乎 / 公众号）
 
 1. 用 `scripts/fetch_text.py <url>` 抓取正文 HTML 并提取纯文本/结构化内容，并映射到 `BookmarkItem`。
 2. 清洗规则（必须执行）：
@@ -86,14 +86,14 @@ updated: "2026-08-19"
 | 小红书收藏合集 | Collection | `route_url()` → collection extractor | 仅 `xiaohongshu.com/collection/item/...` 属于当前核心支持 |
 | 微信视频号 | 文件/视频 | 用户上传文件 或 粘贴支持的视频链接 | 无官方 API，优先让用户发文件；Obsidian 写入需显式确认 |
 | 微信公众号 | 文字 | `fetch_text.py` | 清洗二维码引流、阅读原文引导；保留作者与发布时间 |
-| 知乎 | — | Unsupported | 当前核心架构不支持 |
-| B站 / b23.tv | — | Unsupported | Router 必须报 unsupported，不新增 B站支持 |
+| 知乎 | 文字 | `fetch_text.py` | 支持回答/文章正文与高赞评论的初步提取；遇到反爬要如实返回 |
+| B站 / b23.tv | — | Unsupported | 必须报 unsupported，不新增 B站支持 |
 
 
 ## 核心中间层
 
 - `BookmarkItem`：所有平台统一输出字段，包括 `platform`、`source_type`、`url`、`title`、`author`、`published_at`、`content`、`summary`、`tags`、`assets`、`metadata`、`status`、`errors`。
-- `route_url(source)`：只接受微信公众号、小红书笔记、小红书收藏合集、微信视频号文件/视频；知乎、B站返回 unsupported。
+- `route_url(source)`：只接受知乎、微信公众号、小红书笔记、小红书收藏合集、微信视频号文件/视频；B站返回 unsupported。
 - `render_markdown(item)`：输出带 YAML frontmatter 的标准 Markdown。
 - `ObsidianExportConfig` / `export_to_obsidian(...)`：Obsidian 导出骨架；写入 vault 前必须显式 `confirm=True` 或 CLI `--confirm-obsidian`。
 - CLI：`python3 -m clipped_bookmarks.cli <source> [--out note.md] [--obsidian-vault PATH --confirm-obsidian]`。
@@ -126,9 +126,9 @@ updated: "2026-08-19"
 
 ### 示例 1：知乎回答（文字类）
 
-用户给出：`https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA`
+用户给出：`https://www.zhihu.com/question/633780178/answer/1997868452766058023`
 
-1. `python3 -m clipped_bookmarks.cli "https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA" --out note.md`
+1. `python3 scripts/fetch_text.py "https://www.zhihu.com/question/633780178/answer/1997868452766058023" --out raw.json`
 2. 清洗广告与无关评论，保留作者核心观点
 3. 按文字类模板输出 `bookmarks_notes/微信公众号_xxxx.md`
 
@@ -140,7 +140,7 @@ updated: "2026-08-19"
 2. `bash scripts/extract_audio.sh downloads/xxx.mp4`
 3. `bash scripts/transcribe.sh downloads/xxx.mp3 --api openai`
 4. 提炼笔记，每个重点前标注 `[MM:SS]` 时间戳
-5. 输出 `bookmarks_notes/bilibili/xxx.md`
+5. 输出 `bookmarks_notes/videochannel/xxx.md`
 
 ### 示例 3：批量整理收藏夹
 

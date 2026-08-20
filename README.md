@@ -4,11 +4,11 @@
 
 ## Overview
 
-**Clipped Bookmarks Master** is a CodeBuddy Skill that routes and renders saved/liked posts across the current core scope: **WeChat Official Accounts, Xiaohongshu (RED), Xiaohongshu collections, and WeChat Video Channels files/videos**, cleans them up, and outputs structured Markdown notes.
+**Clipped Bookmarks Master** is a CodeBuddy Skill that routes and renders saved/liked posts across the current core scope: **Zhihu, WeChat Official Accounts, Xiaohongshu (RED), Xiaohongshu collections, and WeChat Video Channels files/videos**, cleans them up, and outputs structured Markdown notes.
 
 | Content Type | Platforms | What It Does |
 |-------------|-----------|--------------|
-| **Text** | WeChat Official Accounts | Fetches body text → strips ads/noise → keeps core arguments |
+| **Text** | Zhihu, WeChat Official Accounts | Fetches body text → strips ads/noise → keeps core arguments and useful comments |
 | **Image/Text/Video** | Xiaohongshu notes, Xiaohongshu collections | Routes note/collection URLs into the shared `BookmarkItem` schema for extractor/rendering stages |
 | **Video** | WeChat Video Channels files/videos | User-provided file or supported video source → transcription pipeline → structured notes |
 
@@ -20,8 +20,8 @@
 | [Xiaohongshu](https://www.xiaohongshu.com) notes / `xhslink.cn` | Image/Text/Video | Supported | Routes as `xiaohongshu_note`; short links are marked `requires_expansion`. |
 | Xiaohongshu collection item URLs | Collection | Supported | Routes as `xiaohongshu_collection`. |
 | WeChat Video Channels | File / Video | Supported | User-provided video files route as `wechat_channels_file`; channel video URLs route as `wechat_channels_video`. |
-| Zhihu | Text | Unsupported in current core scope | Intentionally excluded from this P0 core architecture branch. |
-| Bilibili / `b23.tv` | Video | Unsupported in current core scope | Router raises `UnsupportedPlatformError`; Bilibili is not part of the supported core. |
+| Zhihu | Text | Supported | Q&A answers/articles via `scripts/fetch_text.py`; anti-bot walls are reported, never fabricated. |
+| Bilibili / `b23.tv` | Video | Unsupported in current core scope | Router raises `UnsupportedPlatformError`; Bilibili is not supported. |
 
 
 ## Core Architecture
@@ -79,11 +79,11 @@ Make sure `ffmpeg` is available:
 sudo apt-get install -y ffmpeg
 ```
 
-### 2. Process a WeChat Official Account Article (Text)
+### 2. Process a Zhihu or WeChat Official Account Article (Text)
 
 ```bash
 # Fetch raw content
-python3 scripts/fetch_text.py "https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA" \
+python3 scripts/fetch_text.py "https://www.zhihu.com/question/633780178/answer/1997868452766058023" \
   --out raw.json
 
 # The Agent then cleans ads/noise and produces a Markdown note
@@ -180,7 +180,7 @@ The script auto-detects each platform and routes to the appropriate pipeline.
 #bookmarks #{platform} #{topic}
 ```
 
-> **Note:** WeChat Video Channels notes should include the "Key Timestamps" section when transcripts include timing data. Bilibili is unsupported in the current core scope.
+> **Note:** WeChat Video Channels notes should include the "Key Timestamps" section when transcripts include timing data. Bilibili is unsupported.
 
 ## Environment Variables
 
