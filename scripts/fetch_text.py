@@ -47,6 +47,8 @@ def detect_platform(url: str) -> str:
         return "zhihu"
     if "mp.weixin.qq.com" in url or "weixin.qq.com" in url:
         return "weixin"
+    if "xiaohongshu.com" in url or "xhslink.cn" in url or "xhslink.com" in url:
+        return "xiaohongshu"
     return "unknown"
 
 
@@ -114,6 +116,52 @@ def parse_zhihu(html: str) -> dict:
     return out
 
 
+# ---------------- 小红书 ----------------
+def parse_xiaohongshu(url: str, html: str) -> dict:
+    # Reuse the Xiaohongshu extractor parser without changing the legacy
+    # fetch_text JSON contract. Network fetching/cookies still come from this
+    # script; the extractor parser handles public HTML/embedded state.
+    from clipped_bookmarks.extractors.xiaohongshu import (
+        detect_access_wall,
+        extract_collection_id,
+        extract_note_id,
+        extract_note_urls_from_html,
+        is_collection_url,
+        normalize_xhs_url,
+        parse_xhs_html,
+    )
+
+    final_url = normalize_xhs_url(url)
+    parsed = parse_xhs_html(html)
+    wall = detect_access_wall(html)
+    note_urls = extract_note_urls_from_html(html) if is_collection_url(final_url) else []
+    content = parsed["description"] or parsed["title"] or ""
+    if note_urls:
+        content = (content + "\n" if content else "") + "\n".join(note_urls)
+    status = "error" if wall else "fetched"
+    return {
+        "platform": "xiaohongshu",
+        "title": parsed["title"],
+        "author": parsed["author"] or "",
+        "publish_time": "",
+        "content": content,
+        "top_comments": [],
+        "raw_html_len": len(html),
+        "tags": parsed["tags"],
+        "assets": parsed["image_assets"] + parsed["video_assets"],
+        "note_urls": note_urls,
+        "status": status,
+        "errors": [wall] if wall else [],
+        "metadata": {
+            "canonical_url": final_url,
+            "source_type": "xiaohongshu_collection" if is_collection_url(final_url) else "xiaohongshu_note",
+            "note_id": extract_note_id(final_url),
+            "collection_id": extract_collection_id(final_url),
+            "requires_login": bool(wall),
+        },
+    }
+
+
 # ---------------- 微信公众号 ----------------
 def parse_weixin(html: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
@@ -171,6 +219,8 @@ def main():
         data = parse_zhihu(html)
     elif platform == "weixin":
         data = parse_weixin(html)
+    elif platform == "xiaohongshu":
+        data = parse_xiaohongshu(args.url, html)
     else:
         # 兜底：用 trafilatura 抽取
         try:
