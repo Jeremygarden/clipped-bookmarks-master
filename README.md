@@ -17,7 +17,7 @@
 | Platform / Source | Type | Core Status | Notes |
 |-------------------|------|-------------|-------|
 | WeChat Official Accounts (`mp.weixin.qq.com/s/...`) | Text | Supported | Routes as `wechat_article`; strips QR-code promotions and "read more" blocks in extractor stages. |
-| [Xiaohongshu](https://www.xiaohongshu.com) notes / `xhslink.cn` | Image/Text/Video | Supported | Routes as `xiaohongshu_note`; short links are marked `requires_expansion`. |
+| [Xiaohongshu](https://www.xiaohongshu.com) notes / `xhslink.cn` / `xhslink.com` | Image/Text/Video | Supported | Routes as `xiaohongshu_note`; short links are marked `requires_expansion`. |
 | Xiaohongshu collection item URLs | Collection | Supported | Routes as `xiaohongshu_collection`. |
 | WeChat Video Channels | File / Video | Supported | User-provided video files route as `wechat_channels_file`; channel video URLs route as `wechat_channels_video`. |
 | Zhihu | Text | Supported | Q&A answers/articles via `scripts/fetch_text.py`; anti-bot walls are reported, never fabricated. |

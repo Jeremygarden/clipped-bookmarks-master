@@ -6,6 +6,7 @@ CLI helpers:
 
 ```bash
 python3 scripts/xhs_expand.py 'https://xhslink.cn/o/2HSnq3KBHMZ' --json
+python3 scripts/xhs_expand.py 'https://xhslink.com/a/2HSnq3KBHMZ' --json
 python3 scripts/xhs_download_media.py 'https://www.xiaohongshu.com/explore/<note_id>' --out xhs_media
 ```
 
