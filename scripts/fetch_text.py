@@ -24,6 +24,12 @@ import json
 import argparse
 import re
 from datetime import datetime
+from http.cookiejar import MozillaCookieJar
+
+try:
+    from clipped_bookmarks.extractors.zhihu import extract_zhihu
+except ImportError:  # pragma: no cover - keeps standalone script usable
+    extract_zhihu = None
 
 try:
     import requests
@@ -61,9 +67,9 @@ def fetch_html(url: str, cookies_path: str = None) -> str:
     if cookies_path:
         # Netscape cookie jar 格式
         try:
-            cj = requests.cookies.MozillaCookieJar(cookies_path)
+            cj = MozillaCookieJar(cookies_path)
             cj.load(ignore_discard=True, ignore_expires=True)
-            sess.cookies = cj
+            sess.cookies.update(cj)
         except Exception as e:  # noqa
             sys.stderr.write(f"[警告] 读取 cookies 失败: {e}\n")
     resp = sess.get(url, timeout=30)
@@ -72,45 +78,30 @@ def fetch_html(url: str, cookies_path: str = None) -> str:
 
 
 # ---------------- 知乎 ----------------
-def parse_zhihu(html: str) -> dict:
+def parse_zhihu(html: str, url: str = "") -> dict:
+    if extract_zhihu is not None:
+        return extract_zhihu(html, url=url)
+
+    # Minimal fallback if the package import is unavailable.
     soup = BeautifulSoup(html, "html.parser")
     out = {"platform": "zhihu", "title": "", "author": "", "publish_time": "",
-           "content": "", "top_comments": [], "raw_html_len": len(html)}
-
-    # 标题
-    t = soup.find("h1")
+           "upvote_count": None, "content": "", "top_comments": [],
+           "raw_html_len": len(html), "extra": {"requires_login": False, "anti_bot": False}}
+    t = soup.find("h1") or soup.select_one(".QuestionHeader-title, .Post-Title, title")
     if t:
         out["title"] = _clean_text(t.get_text())
-
-    # 回答正文（RichText / 多段落）
     answer = soup.select_one(".AnswerCard, .RichText, .Post-RichTextContainer")
     if answer:
-        # 移除广告/推广节点
-        for bad in answer.select(".Advert, .Promotion, .KfeCollection-..."):
+        for bad in answer.select(".Advert, .Promotion, .KfeCollection-PurchaseBtn"):
             bad.decompose()
         paras = [p.get_text(" ", strip=True) for p in answer.find_all(["p", "li"])]
         out["content"] = "\n".join(_clean_text(p) for p in paras if p)
-
-    # 答主与赞同
     au = soup.select_one(".AuthorInfo-name, .UserLink-name")
     if au:
         out["author"] = _clean_text(au.get_text())
     vote = soup.select_one(".VoteButton--up, .ContentItem-actions [itemprop='upvoteCount']")
     if vote:
-        out["publish_time"] = _clean_text(vote.get("content", ""))
-
-    # 高赞评论：知乎评论区有 data-vote 或 .CommentItem-voteCount
-    comments = []
-    for c in soup.select(".CommentItem, .List-item[data-type='Comment']"):
-        txt = c.get_text(" ", strip=True)
-        # 粗略提取点赞数
-        m = re.search(r"(\d[\d,]*)\s*赞|赞同\s*(\d[\d,]*)", txt)
-        likes = int(m.group(1).replace(",", "")) if m else 0
-        if len(txt) > 15:
-            comments.append({"author": "", "likes": likes, "text": _clean_text(txt[:500])})
-    # 取点赞最高 5 条
-    comments.sort(key=lambda x: x["likes"], reverse=True)
-    out["top_comments"] = comments[:5]
+        out["upvote_count"] = vote.get("content") or _clean_text(vote.get_text())
     return out
 
 
@@ -168,7 +159,7 @@ def main():
         sys.exit(3)
 
     if platform == "zhihu":
-        data = parse_zhihu(html)
+        data = parse_zhihu(html, args.url)
     elif platform == "weixin":
         data = parse_weixin(html)
     else:
