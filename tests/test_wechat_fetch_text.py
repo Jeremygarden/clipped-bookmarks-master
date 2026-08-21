@@ -4,6 +4,11 @@ from scripts.fetch_text import detect_platform, parse_weixin
 def test_detect_platform_wechat_article():
     assert detect_platform("https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA") == "weixin"
 
+
+def test_detect_platform_wechat_channels_is_not_article():
+    assert detect_platform("https://channels.weixin.qq.com/video/123") == "wechat_channels"
+    assert detect_platform("https://finder.video.qq.com/foo") == "wechat_channels"
+
 def test_fetch_text_parse_weixin_uses_wechat_extractor():
     html = '''<h1 id="activity-name">标题</h1><span id="js_name">作者</span><script>var ct = "1700000000";</script><div id="js_content"><p>正文</p><img data-src="https://mmbiz.qpic.cn/a.png" /></div>'''
     data = parse_weixin(html, "https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA")

@@ -50,7 +50,12 @@ HEADERS = {
 def detect_platform(url: str) -> str:
     if "zhihu.com" in url:
         return "zhihu"
-    if "mp.weixin.qq.com" in url or "weixin.qq.com" in url:
+    # Only WeChat Official Account article pages are handled by this text
+    # fetcher. WeChat Channels links are media/file inputs and should not be
+    # misclassified as public-account articles.
+    if "channels.weixin.qq.com" in url or "finder.video.qq.com" in url:
+        return "wechat_channels"
+    if "mp.weixin.qq.com" in url:
         return "weixin"
     return "unknown"
 
@@ -179,6 +184,19 @@ def main():
         data = parse_zhihu(html)
     elif platform == "weixin":
         data = parse_weixin(html, args.url)
+    elif platform == "wechat_channels":
+        data = {
+            "platform": "wechat_channels",
+            "title": "WeChat Channels video",
+            "author": "",
+            "publish_time": "",
+            "content": "WeChat Channels links require a user-uploaded/exported media file; public link downloading is not supported.",
+            "top_comments": [],
+            "raw_html_len": len(html),
+            "status": "error",
+            "errors": ["WeChat Channels URL requires upload of a user-provided video/audio/transcript file"],
+            "metadata": {"requires_upload": True, "download_supported": False},
+        }
     else:
         # 兜底：用 trafilatura 抽取
         try:
