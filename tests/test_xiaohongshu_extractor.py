@@ -76,6 +76,13 @@ def test_xhslink_com_short_link_expands_too():
     assert extractor.expand_short_link("https://xhslink.com/a/abc") == "https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd"
 
 
+
+def test_short_link_host_matching_does_not_accept_suffix_spoof():
+    session = FakeSession([FakeResponse(status_code=302, headers={"Location": NOTE_URL})])
+    extractor = XiaohongshuExtractor(session=session, rate_limit_seconds=0)
+    assert extractor.expand_short_link("https://notxhslink.com/a/abc") == "https://notxhslink.com/a/abc"
+    assert session.calls == []
+
 def test_parse_note_html_extracts_title_author_tags_and_media():
     parsed = parse_xhs_html(NOTE_HTML)
     assert parsed["title"] == "周末徒步路线｜风景很好"

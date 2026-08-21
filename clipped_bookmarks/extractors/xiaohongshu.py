@@ -165,7 +165,9 @@ def normalize_xhs_url(url: str) -> str:
     if path.startswith("/search_result/") and qs.get("xsec_source", [""])[0] == "pc_feed":
         path = path.replace("/search_result/", "/explore/", 1)
     return urlunparse((scheme, netloc.lower(), path.rstrip("/"), "", "", ""))
-def _is_xhs_short_host(host: str) -> bool: return host.endswith("xhslink.cn") or host.endswith("xhslink.com")
+def _is_xhs_short_host(host: str) -> bool:
+    host = host.lower().rstrip(".")
+    return host in {"xhslink.cn", "www.xhslink.cn", "xhslink.com", "www.xhslink.com"} or host.endswith(".xhslink.cn") or host.endswith(".xhslink.com")
 def is_collection_url(url: str) -> bool: return COLLECTION_PATH_RE.search(urlparse(url).path) is not None
 def extract_note_id(url: str) -> str | None: return (m.group(1) if (m := NOTE_PATH_RE.search(urlparse(url).path)) else None)
 def extract_collection_id(url: str) -> str | None: return (m.group(1) if (m := COLLECTION_PATH_RE.search(urlparse(url).path)) else None)
