@@ -19,8 +19,10 @@ COLLECTION_PATH_RE = re.compile(r"/collection/item/([A-Za-z0-9_-]{8,64})")
 NOTE_URL_RE = re.compile(r'https?://(?:www\.)?xiaohongshu\.com/(?:explore|discovery/item|search_result)/[A-Za-z0-9_-]+(?:\?[^"\'<>{}\s]*)?', re.I)
 REDIRECT_URL_RE = re.compile(r'[?&](?:redirectPath|redirect_path|target|url)=([^&]+)', re.I)
 IMAGE_RE = re.compile(r'https?://[^"\'<>\s]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"\'<>\s]*)?', re.I)
+XHS_CDN_IMAGE_RE = re.compile(r'https?://[^"\'<>\s]*(?:sns-img|ci)\.[^"\'<>\s]*(?:xhscdn|xiaohongshu|xhs)[^"\'<>\s]*', re.I)
 VIDEO_RE = re.compile(r'https?://[^"\'<>\s]+?\.(?:mp4|m3u8)(?:\?[^"\'<>\s]*)?', re.I)
 SCRIPT_RE = re.compile(r'<script[^>]+id=["\'](__INITIAL_STATE__|initial-state|__NEXT_DATA__)["\'][^>]*>(.*?)</script>', re.I | re.S)
+INLINE_STATE_RE = re.compile(r'(?:window\.)?(?:__INITIAL_STATE__|initialState)\s*=\s*({.*?})\s*</script>', re.I | re.S)
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
 LOGIN_WALL_MARKERS = ("登录后查看", "登录以查看更多", "请登录", "验证码", "captcha", "滑块", "安全验证", "访问频繁", "risk", "too many requests")
 RATE_LIMIT_MARKERS = ("访问频繁", "too many requests", "rate")
@@ -159,7 +161,7 @@ def normalize_xhs_url(url: str) -> str:
     qs = parse_qs(p.query)
     for key in ("redirectPath", "redirect_path", "target", "url"):
         values = qs.get(key) or []
-        if values and ("/explore/" in values[0] or "/discovery/item/" in values[0]):
+        if values and any(part in values[0] for part in ("/explore/", "/discovery/item/", "/search_result/")):
             return normalize_xhs_url(values[0])
     scheme = p.scheme or "https"; netloc = p.netloc or p.path.split("/")[0]; path = p.path if p.netloc else "/" + "/".join(p.path.split("/")[1:])
     if path.startswith("/search_result/") and qs.get("xsec_source", [""])[0] == "pc_feed":
@@ -181,7 +183,7 @@ def detect_access_wall(html: str) -> str | None:
 
 def parse_xhs_html(html: str) -> dict[str, Any]:
     title = _unescape(_meta(html, "og:title") or _meta(html, "twitter:title") or _title(html)); desc = _unescape(_meta(html, "description") or _meta(html, "og:description") or ""); author = _unescape(_meta(html, "author") or "") or None
-    images, videos = _dedupe(IMAGE_RE.findall(html)), _dedupe(VIDEO_RE.findall(html)); state = _json_state(html)
+    images, videos = _dedupe([*IMAGE_RE.findall(html), *XHS_CDN_IMAGE_RE.findall(html)]), _dedupe(VIDEO_RE.findall(html)); state = _json_state(html)
     image_assets = [{"url": u, "metadata": {"source": "html"}} for u in images]
     video_assets = [{"url": u, "metadata": {"source": "html"}} for u in videos]
     if state:
@@ -204,7 +206,9 @@ def _meta(html: str, name: str) -> str:
     m = re.search(r'<meta[^>]+(?:property|name)=["\']' + re.escape(name) + r'["\'][^>]+content=["\'](.*?)["\']', html, re.I | re.S); return m.group(1) if m else ""
 def _title(html: str) -> str: return (m.group(1) if (m := TITLE_RE.search(html)) else "")
 def _json_state(html: str) -> Any:
-    for _, payload in SCRIPT_RE.findall(html):
+    payloads = [payload for _, payload in SCRIPT_RE.findall(html)]
+    payloads += INLINE_STATE_RE.findall(html)
+    for payload in payloads:
         raw = _unescape(payload.strip())
         for candidate in (raw, raw.replace("\\/", "/")):
             try: return json.loads(candidate)

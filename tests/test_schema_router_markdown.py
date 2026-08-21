@@ -121,3 +121,13 @@ def test_cli_obsidian_requires_confirmation(tmp_path: Path, capsys):
     code = cli_main([WECHAT_SAMPLE, "--obsidian-vault", str(tmp_path), "--confirm-obsidian"])
     assert code == 0
     assert list((tmp_path / "Clipped Bookmarks").glob("*.md"))
+
+
+def test_router_host_matching_rejects_xiaohongshu_suffix_spoof():
+    for url in ["https://notxiaohongshu.com/explore/66abcdef000000001f03abcd", "https://notxhslink.com/a/abc"]:
+        try:
+            route_url(url)
+        except UnsupportedPlatformError:
+            pass
+        else:
+            raise AssertionError(f"spoofed host should be unsupported: {url}")

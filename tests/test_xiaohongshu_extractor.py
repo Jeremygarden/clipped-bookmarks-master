@@ -192,3 +192,23 @@ def test_rate_limit_wall_is_reported_distinctly_with_retry_hint():
     assert item.status == "error"
     assert "rate-limit" in item.errors[0]
     assert item.metadata["retry_after"] == 7
+
+
+def test_window_initial_state_assignment_is_parsed():
+    html = '''<script>window.__INITIAL_STATE__ = {
+      "note": {"title":"Inline状态标题", "desc":"正文", "imageList":[{"url":"https:\\/\\/sns-img.xhscdn.com\\/inline-image"}]}
+    }</script>'''
+    parsed = parse_xhs_html(html)
+    assert parsed["title"] == "Inline状态标题"
+    assert parsed["images"] == ["https://sns-img.xhscdn.com/inline-image"]
+
+
+def test_extensionless_xhs_cdn_image_url_is_kept_from_html():
+    html = '<img src="https://sns-img.xhscdn.com/abc123?imageView2/2/w/1080">'
+    parsed = parse_xhs_html(html)
+    assert parsed["images"] == ["https://sns-img.xhscdn.com/abc123?imageView2/2/w/1080"]
+
+
+def test_normalize_encoded_redirect_search_result_to_explore_note_url():
+    url = "https://www.xiaohongshu.com/router?target=https%3A%2F%2Fwww.xiaohongshu.com%2Fsearch_result%2F66abcdef000000001f03abcd%3Fxsec_source%3Dpc_feed"
+    assert normalize_xhs_url(url) == "https://www.xiaohongshu.com/explore/66abcdef000000001f03abcd"

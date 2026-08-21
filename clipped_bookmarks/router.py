@@ -42,7 +42,7 @@ def route_url(source: str) -> BookmarkItem:
     host = parsed.netloc.lower()
     path = parsed.path.lower()
 
-    if host.endswith("zhihu.com"):
+    if _host_matches(host, "zhihu.com"):
         return BookmarkItem(
             url=source,
             platform=Platform.ZHIHU,
@@ -58,7 +58,7 @@ def route_url(source: str) -> BookmarkItem:
             metadata={"input_kind": "url"},
         )
 
-    if host.endswith(("xhslink.cn", "xhslink.com")):
+    if _host_matches(host, "xhslink.cn") or _host_matches(host, "xhslink.com"):
         return BookmarkItem(
             url=source,
             platform=Platform.XIAOHONGSHU,
@@ -66,7 +66,7 @@ def route_url(source: str) -> BookmarkItem:
             metadata={"input_kind": "short_url", "requires_expansion": True},
         )
 
-    if host.endswith("xiaohongshu.com"):
+    if _host_matches(host, "xiaohongshu.com"):
         if path.startswith("/collection/item/"):
             return BookmarkItem(
                 url=source,
@@ -91,6 +91,12 @@ def route_url(source: str) -> BookmarkItem:
         )
 
     raise UnsupportedPlatformError(f"Unsupported source: {source}")
+
+
+def _host_matches(host: str, domain: str) -> bool:
+    host = host.lower().rstrip(".")
+    domain = domain.lower().rstrip(".")
+    return host == domain or host.endswith(f".{domain}")
 
 
 def _raise_if_unsupported(lower: str, source: str) -> None:
