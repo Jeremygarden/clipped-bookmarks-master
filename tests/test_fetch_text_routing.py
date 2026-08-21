@@ -17,6 +17,7 @@ def test_fetch_text_routes_zhihu_answer_and_article():
     "source",
     [
         "https://xhslink.cn/o/2HSnq3KBHMZ",
+        "https://xhslink.com/a/abc123",
         "/tmp/channel-save.mp4",
         "https://channels.weixin.qq.com/mobile/video?id=abc",
         "https://www.bilibili.com/video/BV1xx411c7mD",

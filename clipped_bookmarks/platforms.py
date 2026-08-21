@@ -37,8 +37,8 @@ SUPPORTED_PLATFORM_REGISTRY: dict[Platform, PlatformDescriptor] = {
         platform=Platform.XIAOHONGSHU,
         display_name="小红书",
         source_types=(SourceType.XIAOHONGSHU_NOTE, SourceType.XIAOHONGSHU_COLLECTION),
-        url_hosts=("xhslink.cn", "xiaohongshu.com"),
-        notes="Supports notes, short links requiring expansion, and collection item links.",
+        url_hosts=("xhslink.cn", "xhslink.com", "xiaohongshu.com"),
+        notes="Supports notes, xhslink.cn/xhslink.com short links requiring expansion, and collection item links.",
     ),
     Platform.WECHAT_CHANNELS: PlatformDescriptor(
         platform=Platform.WECHAT_CHANNELS,

@@ -17,7 +17,7 @@
 | Platform / Source | Type | Core Status | Notes |
 |-------------------|------|-------------|-------|
 | WeChat Official Accounts (`mp.weixin.qq.com/s/...`) | Text | Supported | Routes as `wechat_article`; strips QR-code promotions and "read more" blocks in extractor stages. |
-| [Xiaohongshu](https://www.xiaohongshu.com) notes / `xhslink.cn` | Image/Text/Video | Supported | Routes as `xiaohongshu_note`; short links are marked `requires_expansion`. |
+| [Xiaohongshu](https://www.xiaohongshu.com) notes / `xhslink.cn` / `xhslink.com` | Image/Text/Video | Supported | Routes as `xiaohongshu_note`; short links are marked `requires_expansion`. |
 | Xiaohongshu collection item URLs | Collection | Supported | Routes as `xiaohongshu_collection`. |
 | WeChat Video Channels | File / Video | Supported | User-provided video files route as `wechat_channels_file`; channel video URLs route as `wechat_channels_video`. |
 | Zhihu (`zhihu.com/question/.../answer/...`, `zhuanlan.zhihu.com/p/...`) | Text | Supported | Routes as `zhihu_answer` or `zhihu_article`; extraction remains platform-agent work. |
@@ -119,6 +119,7 @@ Create `links.txt` (one URL per line):
 ```
 https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA
 https://xhslink.cn/o/2HSnq3KBHMZ
+https://xhslink.com/a/abc123
 https://www.xiaohongshu.com/collection/item/68930d3b02f5000000000001
 ```
 

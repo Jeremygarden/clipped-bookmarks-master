@@ -16,7 +16,7 @@ def route_url(source: str) -> BookmarkItem:
 
     Supported core sources are limited to:
     - WeChat Official Account articles (mp.weixin.qq.com/s/...)
-    - Xiaohongshu note links (xhslink.cn, xiaohongshu.com/explore|discovery/item)
+    - Xiaohongshu note links (xhslink.cn/xhslink.com, xiaohongshu.com/explore|discovery/item)
     - Xiaohongshu collection item links (xiaohongshu.com/collection/item/...)
     - WeChat Channels local uploaded files or channel video links
     - Zhihu answers and Zhuanlan articles
@@ -50,7 +50,7 @@ def route_url(source: str) -> BookmarkItem:
             metadata={"input_kind": "url"},
         )
 
-    if host.endswith("xhslink.cn"):
+    if host.endswith(("xhslink.cn", "xhslink.com")):
         return BookmarkItem(
             url=source,
             platform=Platform.XIAOHONGSHU,

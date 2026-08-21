@@ -18,7 +18,7 @@ updated: "2026-08-19"
 满足任一条件即触发：
 
 - 用户给出了以下平台的链接：
-  - 小红书 `xiaohongshu.com` / `xhslink.cn`
+  - 小红书 `xiaohongshu.com` / `xhslink.cn` / `xhslink.com`
   - 微信视频号（用户直接粘贴的视频号链接 / 文件）
   - 微信公众号 `mp.weixin.qq.com`
   - 知乎回答/专栏 `zhihu.com` / `zhuanlan.zhihu.com`
@@ -83,7 +83,7 @@ updated: "2026-08-19"
 
 | 平台 | 类型 | 抓取方式 | 特别处理 |
 |------|------|----------|----------|
-| 小红书笔记 | 视频/图文 | `route_url()` → extractor / OCR / 下载流程 | `xhslink.cn` 标记为需展开；图文笔记抓取图片 OCR + 正文；视频走步骤 B |
+| 小红书笔记 | 视频/图文 | `route_url()` → extractor / OCR / 下载流程 | `xhslink.cn` / `xhslink.com` 标记为需展开；图文笔记抓取图片 OCR + 正文；视频走步骤 B |
 | 小红书收藏合集 | Collection | `route_url()` → collection extractor | 仅 `xiaohongshu.com/collection/item/...` 属于当前核心支持 |
 | 微信视频号 | 文件/视频 | 用户上传文件 或 粘贴支持的视频链接 | 无官方 API，优先让用户发文件；Obsidian 写入需显式确认 |
 | 微信公众号 | 文字 | `fetch_text.py` | 清洗二维码引流、阅读原文引导；保留作者与发布时间 |

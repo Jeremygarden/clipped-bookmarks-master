@@ -17,10 +17,11 @@ def test_routes_wechat_article_sample():
 
 
 def test_routes_xhs_short_link_sample_as_note_requiring_expansion():
-    item = route_url(XHS_SAMPLE)
-    assert item.platform == Platform.XIAOHONGSHU
-    assert item.source_type == SourceType.XIAOHONGSHU_NOTE
-    assert item.metadata["requires_expansion"] is True
+    for source in (XHS_SAMPLE, "https://xhslink.com/a/abc123"):
+        item = route_url(source)
+        assert item.platform == Platform.XIAOHONGSHU
+        assert item.source_type == SourceType.XIAOHONGSHU_NOTE
+        assert item.metadata["requires_expansion"] is True
 
 
 def test_routes_xhs_collection_sample():
