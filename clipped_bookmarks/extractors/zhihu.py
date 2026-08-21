@@ -18,16 +18,47 @@ from bs4 import BeautifulSoup
 
 LOGIN_WALL_PATTERNS = (
     "登录后你可以",
+    "登录后查看",
+    "登录即可查看",
     "登录知乎",
     "注册知乎",
     "安全验证",
     "请完成验证",
+    "请进行验证",
+    "访问异常",
     "unhuman",
     "captcha",
     "403 Forbidden",
+    "403 - Forbidden",
     "页面不存在",
     "内容不存在",
     "你似乎来到了没有知识存在的荒原",
+)
+
+ANTI_BOT_PATTERNS = (
+    "安全验证",
+    "请完成验证",
+    "请进行验证",
+    "访问异常",
+    "unhuman",
+    "captcha",
+    "403 Forbidden",
+    "403 - Forbidden",
+)
+
+RAW_DATA_KEYS = (
+    "url",
+    "content_type",
+    "question_id",
+    "answer_id",
+    "article_id",
+    "primary_id",
+    "item_count",
+    "requires_login",
+    "anti_bot",
+    "not_found",
+    "dynamic_fallback",
+    "comments_fallback",
 )
 
 NOT_FOUND_PATTERNS = (
@@ -38,11 +69,6 @@ NOT_FOUND_PATTERNS = (
 )
 
 ARTICLE_RE = re.compile(r"(?:zhihu\.com|zhuanlan\.zhihu\.com)/p/(\d+)")
-ZVIDEO_RE = re.compile(r"zhihu\.com/zvideo/(\d+)")
-PIN_RE = re.compile(r"zhihu\.com/pin/(\d+)")
-YANXUAN_RE = re.compile(r"zhihu\.com/(?:market/(?:paid_)?column|xen)/(\d+)")
-PEOPLE_RE = re.compile(r"zhihu\.com/people/([^/?#]+)")
-COLLECTION_RE = re.compile(r"zhihu\.com/collection/(\d+)")
 QUESTION_RE = re.compile(r"zhihu\.com/question/(\d+)(?:/answer/(\d+))?")
 ZHIHU_HOSTS = ("zhihu.com", "www.zhihu.com", "zhuanlan.zhihu.com")
 
@@ -94,16 +120,6 @@ def parse_count(value: Any) -> Optional[int]:
 
 
 def detect_content_type(url: str, soup: BeautifulSoup) -> str:
-    if ZVIDEO_RE.search(url):
-        return "video"
-    if PIN_RE.search(url):
-        return "pin"
-    if YANXUAN_RE.search(url):
-        return "yanxuan"
-    if COLLECTION_RE.search(url):
-        return "collection"
-    if PEOPLE_RE.search(url):
-        return "people"
     if ARTICLE_RE.search(url):
         return "article"
     question_match = QUESTION_RE.search(url)
@@ -111,10 +127,6 @@ def detect_content_type(url: str, soup: BeautifulSoup) -> str:
         return "answer" if question_match.group(2) else "question"
     if soup.select_one(".Post-RichTextContainer, article"):
         return "article"
-    if soup.select_one(".CollectionDetailPage, .CollectionPage"):
-        return "collection"
-    if soup.select_one(".ProfileHeader, .Profile-main"):
-        return "people"
     if soup.select_one(".QuestionHeader, .QuestionPage"):
         return "question"
     return "answer" if soup.select_one(".AnswerCard, .AnswerItem") else "unknown"
@@ -122,12 +134,13 @@ def detect_content_type(url: str, soup: BeautifulSoup) -> str:
 
 def detect_login_wall(html: str, soup: BeautifulSoup) -> Dict[str, Any]:
     body_text = soup.get_text(" ", strip=True)[:4000]
-    haystack = (html + body_text).lower()
+    haystack = (html + " " + body_text).lower()
     markers = [p for p in LOGIN_WALL_PATTERNS if p.lower() in haystack]
     not_found_markers = [p for p in NOT_FOUND_PATTERNS if p.lower() in haystack]
-    has_modal = bool(soup.select_one(".SignFlow, .Modal, .Captcha, .Unhuman"))
-    anti_bot = any(p.lower() in haystack for p in ("安全验证", "请完成验证", "unhuman", "captcha"))
+    anti_bot_markers = [p for p in ANTI_BOT_PATTERNS if p.lower() in haystack]
+    has_modal = bool(soup.select_one(".SignFlow, .Modal, .Captcha, .Unhuman, [class*='Captcha'], [class*='Unhuman']"))
     login_markers = [m for m in markers if m not in not_found_markers]
+    anti_bot = bool(anti_bot_markers or soup.select_one(".Captcha, .Unhuman, [class*='Captcha'], [class*='Unhuman']"))
     return {
         "requires_login": bool(login_markers or has_modal or anti_bot),
         "anti_bot": anti_bot,
@@ -241,29 +254,49 @@ def _item_from_json(obj: Dict[str, Any], fallback_title: str = "") -> Optional[D
     item_type = obj.get("type") or obj.get("content_type") or obj.get("target_type") or ("answer" if question else "article")
     raw_url = obj.get("url") or obj.get("origin_url") or ""
     raw_id = obj.get("id") or obj.get("answer_id") or obj.get("article_id") or ""
+    question_id = question.get("id") or obj.get("question_id") or ""
+    raw_data = {
+        "id": str(raw_id),
+        "type": str(item_type or ""),
+        "url": str(raw_url or ""),
+        "question_id": str(question_id or ""),
+    }
     return {
         "type": item_type,
-        "id": str(obj.get("id") or obj.get("answer_id") or obj.get("article_id") or ""),
+        "id": str(raw_id),
         "title": title,
         "author": _author_name(obj),
         "publish_time": publish_time,
         "upvote_count": upvote_count,
         "content": content,
         "url": raw_url,
-        "raw_data": {"id": raw_id, "type": item_type, "url": raw_url},
+        "raw_data": raw_data,
     }
+
+
+def _dedupe_key(item: Dict[str, Any]) -> tuple:
+    """Stable key for duplicate entities mirrored across Zhihu initial-state trees."""
+    raw = item.get("raw_data") if isinstance(item.get("raw_data"), dict) else {}
+    item_id = clean_text(str(item.get("id") or raw.get("id") or ""))
+    item_type = clean_text(str(item.get("type") or raw.get("type") or ""))
+    if item_id:
+        return ("id", item_type, item_id)
+    url = clean_text(str(item.get("url") or raw.get("url") or ""))
+    if url:
+        return ("url", item_type, url)
+    return ("content", item_type, item.get("content", "")[:160])
 
 
 def json_items(state: Dict[str, Any], fallback_title: str = "") -> List[Dict[str, Any]]:
     seen = set()
     items: List[Dict[str, Any]] = []
     for obj in iter_dicts(state):
-        if not any(k in obj for k in ("content", "excerpt", "question", "voteup_count", "created_time")):
+        if not any(k in obj for k in ("content", "excerpt", "detail", "question", "voteup_count", "upvoteCount", "created_time")):
             continue
         item = _item_from_json(obj, fallback_title=fallback_title)
         if not item or not item.get("content"):
             continue
-        key = (item.get("type"), item.get("id"), item.get("content")[:80])
+        key = _dedupe_key(item)
         if key in seen:
             continue
         seen.add(key)
@@ -294,9 +327,11 @@ def dom_items(soup: BeautifulSoup, fallback_title: str = "") -> List[Dict[str, A
             upvote_count = None
             if vote_node:
                 upvote_count = parse_count(vote_node.get("content") or vote_node.get("aria-label") or vote_node.get_text(" ", strip=True))
+            item_type = "article" if "Post" in " ".join(node.get("class", [])) or node.name == "article" else "answer"
+            item_id = node.get("data-za-extra-module") or node.get("data-id") or ""
             items.append({
-                "type": "article" if "Post" in " ".join(node.get("class", [])) or node.name == "article" else "answer",
-                "id": node.get("data-za-extra-module") or node.get("data-id") or "",
+                "type": item_type,
+                "id": item_id,
                 "title": fallback_title,
                 "author": clean_text(author_node.get_text(" ", strip=True)) if author_node else "",
                 "publish_time": publish_time,
@@ -304,9 +339,10 @@ def dom_items(soup: BeautifulSoup, fallback_title: str = "") -> List[Dict[str, A
                 "content": content,
                 "url": "",
                 "raw_data": {
-                    "id": node.get("data-za-extra-module") or node.get("data-id") or "",
-                    "type": "article" if "Post" in " ".join(node.get("class", [])) or node.name == "article" else "answer",
+                    "id": str(item_id),
+                    "type": item_type,
                     "url": "",
+                    "question_id": "",
                 },
             })
     return items
@@ -345,7 +381,7 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
     deduped: List[Dict[str, Any]] = []
     seen = set()
     for item in items:
-        key = (item.get("id"), item.get("content", "")[:120])
+        key = _dedupe_key(item)
         if key in seen:
             continue
         seen.add(key)
@@ -360,11 +396,6 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
     content_type = detect_content_type(url, soup)
     question_match = QUESTION_RE.search(url or "")
     article_match = ARTICLE_RE.search(url or "")
-    zvideo_match = ZVIDEO_RE.search(url or "")
-    pin_match = PIN_RE.search(url or "")
-    yanxuan_match = YANXUAN_RE.search(url or "")
-    people_match = PEOPLE_RE.search(url or "")
-    collection_match = COLLECTION_RE.search(url or "")
     has_comment_dom = bool(soup.select_one(".CommentItem, [class*='CommentItem']"))
     dynamic_fallback = not bool(deduped) and not wall["requires_login"] and not wall["not_found"]
     if has_comment_dom:
@@ -374,16 +405,30 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
     else:
         comments_fallback = "api_or_dynamic_required"
 
+    question_id = question_match.group(1) if question_match else ""
+    answer_id = question_match.group(2) if question_match and question_match.group(2) else (primary.get("id", "") if content_type == "answer" else "")
+    article_id = article_match.group(1) if article_match else (primary.get("id", "") if content_type == "article" else "")
+    raw_data = {
+        "url": url or "",
+        "content_type": content_type,
+        "question_id": str(question_id or ""),
+        "answer_id": str(answer_id or ""),
+        "article_id": str(article_id or ""),
+        "primary_id": str(primary.get("id", "") if primary else ""),
+        "item_count": len(deduped),
+        "requires_login": bool(wall["requires_login"]),
+        "anti_bot": bool(wall["anti_bot"]),
+        "not_found": bool(wall["not_found"]),
+        "dynamic_fallback": bool(dynamic_fallback),
+        "comments_fallback": comments_fallback,
+    }
+    raw_data = {key: raw_data[key] for key in RAW_DATA_KEYS}
+
     extra = {
         "content_type": content_type,
-        "question_id": question_match.group(1) if question_match else "",
-        "answer_id": question_match.group(2) if question_match and question_match.group(2) else (primary.get("id", "") if content_type == "answer" else ""),
-        "article_id": article_match.group(1) if article_match else (primary.get("id", "") if content_type == "article" else ""),
-        "video_id": zvideo_match.group(1) if zvideo_match else (primary.get("id", "") if content_type == "video" else ""),
-        "pin_id": pin_match.group(1) if pin_match else (primary.get("id", "") if content_type == "pin" else ""),
-        "yanxuan_id": yanxuan_match.group(1) if yanxuan_match else (primary.get("id", "") if content_type == "yanxuan" else ""),
-        "people_token": people_match.group(1) if people_match else "",
-        "collection_id": collection_match.group(1) if collection_match else (primary.get("id", "") if content_type == "collection" else ""),
+        "question_id": raw_data["question_id"],
+        "answer_id": raw_data["answer_id"],
+        "article_id": raw_data["article_id"],
         "upvote_count": primary.get("upvote_count"),
         "items": deduped,
         "requires_login": wall["requires_login"],
@@ -397,24 +442,7 @@ def extract_zhihu(html: str, url: str = "") -> Dict[str, Any]:
             "content": "json_or_dom" if deduped else ("not_found" if wall["not_found"] else ("login_required" if wall["requires_login"] else "dynamic_required")),
             "comments": comments_fallback,
         },
-        "raw_data": {
-            "url": url,
-            "content_type": content_type,
-            "question_id": question_match.group(1) if question_match else "",
-            "answer_id": question_match.group(2) if question_match and question_match.group(2) else (primary.get("id", "") if content_type == "answer" else ""),
-            "article_id": article_match.group(1) if article_match else (primary.get("id", "") if content_type == "article" else ""),
-            "video_id": zvideo_match.group(1) if zvideo_match else (primary.get("id", "") if content_type == "video" else ""),
-            "pin_id": pin_match.group(1) if pin_match else (primary.get("id", "") if content_type == "pin" else ""),
-            "yanxuan_id": yanxuan_match.group(1) if yanxuan_match else (primary.get("id", "") if content_type == "yanxuan" else ""),
-            "people_token": people_match.group(1) if people_match else "",
-            "collection_id": collection_match.group(1) if collection_match else (primary.get("id", "") if content_type == "collection" else ""),
-            "item_count": len(deduped),
-            "requires_login": wall["requires_login"],
-            "anti_bot": wall["anti_bot"],
-            "not_found": wall["not_found"],
-            "dynamic_fallback": dynamic_fallback,
-            "comments_fallback": comments_fallback,
-        },
+        "raw_data": raw_data,
     }
 
     return {

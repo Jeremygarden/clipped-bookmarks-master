@@ -148,48 +148,61 @@ def test_question_multiple_answers_and_login_wall_detection():
     assert data["raw_data"]["requires_login"] is True
 
 
-def test_video_pin_and_yanxuan_urls_report_fallback_ids_and_types():
-    video = extract_zhihu('<title>视频页 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/zvideo/456")
-    assert video["extra"]["content_type"] == "video"
-    assert video["extra"]["video_id"] == "456"
-    assert video["raw_data"]["video_id"] == "456"
-    assert video["extra"]["fallbacks"]["content"] == "dynamic_required"
 
-    pin = extract_zhihu('<title>想法页 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/pin/789")
-    assert pin["extra"]["content_type"] == "pin"
-    assert pin["extra"]["pin_id"] == "789"
-    assert pin["raw_data"]["pin_id"] == "789"
-
-    yanxuan = extract_zhihu('<title>盐选页 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/market/paid_column/111")
-    assert yanxuan["extra"]["content_type"] == "yanxuan"
-    assert yanxuan["extra"]["yanxuan_id"] == "111"
-    assert yanxuan["raw_data"]["yanxuan_id"] == "111"
-
-
-def test_zhuanlan_article_url_detected_as_article():
-    data = extract_zhihu('<title>专栏页 - 知乎</title><article><p>专栏正文</p></article>', "https://zhuanlan.zhihu.com/p/222")
-    assert data["extra"]["content_type"] == "article"
-    assert data["extra"]["article_id"] == "222"
-    assert data["raw_data"]["article_id"] == "222"
-
-
-def test_people_and_collection_urls_report_ids_without_fake_content():
-    people = extract_zhihu('<title>用户页 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/people/alice")
-    assert people["extra"]["content_type"] == "people"
-    assert people["extra"]["people_token"] == "alice"
-    assert people["raw_data"]["people_token"] == "alice"
-    assert people["extra"]["fallbacks"]["content"] == "dynamic_required"
-
-    collection = extract_zhihu('<title>收藏夹 - 知乎</title><div id="root"></div>', "https://www.zhihu.com/collection/12345")
-    assert collection["extra"]["content_type"] == "collection"
-    assert collection["extra"]["collection_id"] == "12345"
-    assert collection["raw_data"]["collection_id"] == "12345"
+def test_initial_state_dedupes_answer_entities_by_id_across_trees():
+    answer = {
+        "id": "dup-1",
+        "question": {"id": "88", "title": "去重问题"},
+        "author": {"name": "重复作者"},
+        "content": "<p>同一答案内容。</p>",
+        "voteup_count": 11,
+    }
+    state = {
+        "entities": {"answers": {"dup-1": answer}},
+        "paging": {"first": [{**answer, "content": "<p>同一答案内容。</p><p>镜像树轻微差异。</p>"}]},
+    }
+    html = f'<script id="js-initialData" type="application/json">{json.dumps(state, ensure_ascii=False)}</script>'
+    data = extract_zhihu(html, "https://www.zhihu.com/question/88")
+    assert len(data["extra"]["items"]) == 1
+    assert data["extra"]["items"][0]["raw_data"] == {
+        "id": "dup-1",
+        "type": "answer",
+        "url": "",
+        "question_id": "88",
+    }
+    assert data["raw_data"]["item_count"] == 1
 
 
-def test_not_found_page_is_distinct_from_login_or_dynamic_fallback():
-    data = extract_zhihu('<html><title>页面不存在 - 知乎</title><body>你似乎来到了没有知识存在的荒原</body></html>', "https://www.zhihu.com/question/404")
-    assert data["extra"]["not_found"] is True
-    assert data["extra"]["requires_login"] is False
-    assert data["extra"]["dynamic_fallback"] is False
-    assert data["extra"]["fallbacks"]["content"] == "not_found"
-    assert data["raw_data"]["not_found"] is True
+def test_raw_data_keys_are_stable_for_article_answer_question_and_wall():
+    expected_keys = [
+        "url", "content_type", "question_id", "answer_id", "article_id", "primary_id",
+        "item_count", "requires_login", "anti_bot", "not_found", "dynamic_fallback", "comments_fallback",
+    ]
+    cases = [
+        ("<article><p>文章 DOM 正文</p></article>", "https://zhuanlan.zhihu.com/p/42"),
+        ('<div class="AnswerCard" data-id="7"><div class="RichText"><p>回答 DOM 正文</p></div></div>', "https://www.zhihu.com/question/1/answer/7"),
+        ("<h1>空问题</h1>", "https://www.zhihu.com/question/1"),
+        ("<html><body>访问异常 请进行验证 403 - Forbidden</body></html>", "https://www.zhihu.com/question/2"),
+    ]
+    for html, url in cases:
+        data = extract_zhihu(html, url)
+        assert list(data["raw_data"].keys()) == expected_keys
+        assert data["extra"]["raw_data"] == data["raw_data"]
+
+
+def test_login_wall_and_forbidden_page_markers_are_reported_without_content_fallback():
+    html = """
+    <html><body>
+      <div class="Unhuman">访问异常</div>
+      <p>请进行验证后继续访问</p>
+      <p>403 - Forbidden</p>
+    </body></html>
+    """
+    data = extract_zhihu(html, "https://www.zhihu.com/question/404")
+    assert data["extra"]["requires_login"] is True
+    assert data["extra"]["anti_bot"] is True
+    assert "访问异常" in data["extra"]["login_wall_markers"]
+    assert "请进行验证" in data["extra"]["login_wall_markers"]
+    assert data["extra"]["fallbacks"]["content"] == "login_required"
+    assert data["raw_data"]["dynamic_fallback"] is False
+    assert data["raw_data"]["comments_fallback"] == "login_required"

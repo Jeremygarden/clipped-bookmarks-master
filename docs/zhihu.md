@@ -7,7 +7,7 @@
 - `top_comments`: DOM 中可见评论的前 5 条
 - `raw_html_len`
 - `upvote_count`: 与 `publish_time` 分离，不再误写入发布时间
-- `raw_data`: BookmarkItem-compatible 原始补充数据（URL、类型、fallback 状态等）
+- `raw_data`: BookmarkItem-compatible 原始补充数据（URL、类型、ID、fallback 状态等），键集合在空页/登录墙/问题页/回答页/文章页之间保持稳定
 - `extra`: 知乎专用补充数据，包含 `raw_data` 的同源细节以及 `items`
 
 ## 支持场景
@@ -15,14 +15,24 @@
 1. 回答页：`https://www.zhihu.com/question/<qid>/answer/<aid>`
 2. 文章页：`https://zhuanlan.zhihu.com/p/<article_id>` / `https://www.zhihu.com/p/<article_id>`
 3. 问题页多回答：`https://www.zhihu.com/question/<qid>`，会在 `extra.items` 中返回多个回答候选
-4. 想法 / 视频 / 盐选类 URL：`/pin/<id>`、`/zvideo/<id>`、`/market/paid_column/<id>` 等会识别类型和 ID；正文通常依赖动态渲染，当前以明确 fallback 状态返回
-5. 用户页 / 收藏夹 URL：`/people/<token>`、`/collection/<id>` 会记录 `people_token` / `collection_id`，不伪造正文
 
 解析优先级：
 
-1. Zhihu SSR/initial JSON (`#js-initialData`, `window.__INITIAL_STATE__`)
+1. Zhihu SSR/initial JSON (`#js-initialData`, `#initialData`, `window.__INITIAL_STATE__`, `window.__INITIAL_DATA__`)；同一回答在 `entities`、列表分页等多棵 state 树中重复出现时按 type+id 去重
 2. DOM fallback (`.AnswerCard`, `.AnswerItem`, `.Post-RichTextContainer`, `article`)
 3. 如果页面只返回动态空壳，设置 `extra.dynamic_fallback = true`；如果命中不存在页面文案，设置 `extra.not_found = true` 且 `extra.fallbacks.content = "not_found"`
+
+## raw_data 稳定字段
+
+顶层 `raw_data` 与 `extra.raw_data` 内容一致，固定包含以下键，便于后续 `BookmarkItem` 入库逻辑按白名单读取：
+
+- `url`, `content_type`
+- `question_id`, `answer_id`, `article_id`, `primary_id`
+- `item_count`
+- `requires_login`, `anti_bot`, `not_found`
+- `dynamic_fallback`, `comments_fallback`
+
+`extra.items[*].raw_data` 保存单个回答/文章候选的 `id`, `type`, `url`, `question_id`。
 
 ## 登录墙 / 反爬
 
@@ -51,10 +61,6 @@ python3 scripts/fetch_text.py 'https://www.zhihu.com/question/...' --cookies coo
 后续如接入评论接口，应保持现有顶层字段不变，把接口状态放入 `extra`。
 
 
-## 受限类型 fallback
-
-想法、视频、盐选等页面经常不在初始 HTML 中给出完整正文。当前实现不会伪造内容；会在 `extra.content_type`、对应 `*_id`、`extra.dynamic_fallback`、`extra.fallbacks.content` 与顶层 `raw_data` 中记录状态，便于后续登录态/动态渲染/接口抓取补全。
-
 ## 不存在页面
 
 当知乎返回「页面不存在」「内容不存在」「你似乎来到了没有知识存在的荒原」等文案时，解析器会把它与登录墙、动态空壳区分开：
@@ -66,7 +72,7 @@ python3 scripts/fetch_text.py 'https://www.zhihu.com/question/...' --cookies coo
 
 ## 平台边界
 
-本项目当前只支持：小红书、微信视频号短视频/文件、微信公众号、知乎。知乎 URL 检测使用严格 host 匹配，仅接受 `zhihu.com`、`www.zhihu.com`、`zhuanlan.zhihu.com`，避免把第三方链接参数中包含 `zhihu.com` 的页面误判为知乎内容。
+本项目当前只支持：小红书、微信视频号短视频/文件、微信公众号、知乎。知乎 URL 检测使用严格 host 匹配，仅接受 `zhihu.com`、`www.zhihu.com`、`zhuanlan.zhihu.com`，避免把第三方链接参数中包含 `zhihu.com` 的页面误判为知乎内容。本文档中的知乎提取范围限定为问题 / 回答 / 文章；其他知乎页面不声明为已支持。
 
 知乎解析覆盖：
 
