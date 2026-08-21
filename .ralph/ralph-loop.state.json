@@ -1,0 +1,13 @@
+{
+  "active": true,
+  "iteration": 6,
+  "minIterations": 1,
+  "maxIterations": 10,
+  "completionPromise": "COMPLETE",
+  "tasksMode": false,
+  "taskPromise": "READY_FOR_NEXT_TASK",
+  "prompt": "Repo: https://github.com/Jeremygarden/clipped-bookmarks-master branch feature/zhihu-support. Round 1/5 for Zhihu support only. Work within Zhihu extractor/parser/fetch_text/tests/docs; do not edit Xiaohongshu/WeChat implementations except shared integration if unavoidable. Supported platforms ONLY Xiaohongshu, WeChat Channels short video/files, WeChat Official Accounts, and Zhihu; remove/avoid Bilibili. Make a focused improvement, run relevant tests, commit, and push to origin feature/zhihu-support. Output concise summary and COMPLETE",
+  "startedAt": "2026-08-20T23:37:43.171Z",
+  "model": "github-copilot/claude-sonnet-4.6",
+  "agent": "openclaw"
+}
