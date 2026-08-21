@@ -11,12 +11,17 @@ def test_local_video_file_becomes_fetched_bookmark_item(tmp_path):
     assert item.status == "fetched"
     assert item.metadata["requires_upload"] is False
     assert item.metadata["exists"] is True
+    assert item.metadata["filename"] == "channel-save.mp4"
+    assert item.metadata["size_bytes"] == 8
+    assert item.assets[0].metadata["size_bytes"] == 8
     assert item.assets[0].kind == "video"
     assert item.assets[0].local_path == str(video)
 
 
 def test_file_url_is_recognized_as_local_video():
     assert is_local_video_file("file:///tmp/wechat-channel.mov") is True
+    assert is_local_video_file("file:///tmp/wechat%20channel.mov") is True
+    assert WeChatVideoExtractor().extract("file:///tmp/wechat%20channel.mov").assets[0].local_path == "/tmp/wechat channel.mov"
     assert is_local_video_file("https://example.com/video.mp4") is False
 
 

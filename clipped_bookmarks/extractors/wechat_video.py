@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from clipped_bookmarks.schema import BookmarkAsset, BookmarkItem, Platform, SourceType
 
@@ -37,14 +37,19 @@ class WeChatVideoExtractor:
         return self.extract_url_or_hint(source)
 
     def extract_file(self, source: str) -> BookmarkItem:
-        parsed = urlparse(source)
-        raw_path = parsed.path if parsed.scheme == "file" else source
-        path = Path(raw_path).expanduser()
+        path = _local_path_from_source(source)
         suffix = path.suffix.lower()
         if suffix not in self.allowed_extensions:
             raise ValueError(f"Unsupported WeChat Channels file type: {suffix or 'unknown'}")
         kind = _asset_kind(suffix)
-        asset = BookmarkAsset(url=source, kind=kind, title=path.name, local_path=str(path), metadata={"extension": suffix})
+        file_metadata = _local_file_metadata(path)
+        asset = BookmarkAsset(
+            url=source,
+            kind=kind,
+            title=path.name,
+            local_path=str(path),
+            metadata={"extension": suffix, **file_metadata},
+        )
         return BookmarkItem(
             url=source,
             platform=Platform.WECHAT_CHANNELS,
@@ -53,7 +58,15 @@ class WeChatVideoExtractor:
             content=_file_content_message(kind),
             assets=[asset],
             status="fetched",
-            metadata={"input_kind": "file", "requires_upload": False, "extension": suffix, "exists": path.exists(), "asset_kind": kind, "download_supported": False},
+            metadata={
+                "input_kind": "file",
+                "requires_upload": False,
+                "extension": suffix,
+                "exists": path.exists(),
+                "asset_kind": kind,
+                "download_supported": False,
+                **file_metadata,
+            },
         )
 
     def extract_url_or_hint(self, source: str) -> BookmarkItem:
@@ -69,6 +82,21 @@ class WeChatVideoExtractor:
             errors=["WeChat Channels URL requires upload of a user-provided video file for processing"],
             metadata={"input_kind": "url_or_hint", "requires_upload": True, "download_supported": False},
         )
+
+
+def _local_path_from_source(source: str) -> Path:
+    parsed = urlparse((source or "").strip())
+    raw_path = parsed.path if parsed.scheme == "file" else source
+    return Path(unquote(raw_path)).expanduser()
+
+
+def _local_file_metadata(path: Path) -> dict[str, object]:
+    metadata: dict[str, object] = {"filename": path.name, "stem": path.stem}
+    if path.exists() and path.is_file():
+        stat = path.stat()
+        metadata["size_bytes"] = stat.st_size
+        metadata["modified_time"] = int(stat.st_mtime)
+    return metadata
 
 
 def _asset_kind(suffix: str) -> str:
@@ -95,8 +123,7 @@ def is_local_video_file(source: str, extensions: Iterable[str] = FILE_EXTENSIONS
     parsed = urlparse((source or "").strip())
     if parsed.scheme and parsed.scheme != "file":
         return False
-    raw_path = parsed.path if parsed.scheme == "file" else source
-    return Path(raw_path).suffix.lower() in set(extensions)
+    return _local_path_from_source(source).suffix.lower() in set(extensions)
 
 
 def is_wechat_channels_hint(source: str) -> bool:
