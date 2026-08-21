@@ -20,6 +20,23 @@ def test_file_url_is_recognized_as_local_video():
     assert is_local_video_file("https://example.com/video.mp4") is False
 
 
+def test_uploaded_audio_and_transcript_files_are_supported(tmp_path):
+    audio = tmp_path / "channel-audio.m4a"
+    transcript = tmp_path / "channel-transcript.srt"
+    audio.write_bytes(b"fake audio")
+    transcript.write_text("00:00:01,000 --> 00:00:02,000\nhello", encoding="utf-8")
+
+    audio_item = WeChatVideoExtractor().extract(str(audio))
+    transcript_item = WeChatVideoExtractor().extract(str(transcript))
+
+    assert audio_item.source_type == SourceType.WECHAT_CHANNELS_FILE
+    assert audio_item.assets[0].kind == "audio"
+    assert audio_item.metadata["asset_kind"] == "audio"
+    assert audio_item.metadata["download_supported"] is False
+    assert transcript_item.assets[0].kind == "transcript"
+    assert transcript_item.metadata["asset_kind"] == "transcript"
+
+
 def test_wechat_channels_url_requires_uploaded_file():
     item = WeChatVideoExtractor().extract("https://channels.weixin.qq.com/video/123")
     assert item.platform == Platform.WECHAT_CHANNELS

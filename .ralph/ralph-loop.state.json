@@ -1,0 +1,13 @@
+{
+  "active": true,
+  "iteration": 7,
+  "minIterations": 1,
+  "maxIterations": 10,
+  "completionPromise": "COMPLETE",
+  "tasksMode": false,
+  "taskPromise": "READY_FOR_NEXT_TASK",
+  "prompt": "Round 1/5 for repo clipped-bookmarks-master branch feature/wechat-article-support. Role: WeChat Official Accounts + WeChat Channels short video/file support only. Preserve file boundary: edit only WeChat article/Channels video or file extractor/parser/fetch_text/tests/docs; do not edit Xiaohongshu/Zhihu except shared integration if unavoidable. Supported platforms ONLY Xiaohongshu, WeChat Channels short video/files, WeChat Official Accounts, Zhihu; remove/avoid Bilibili support. For WeChat Channels support local uploaded short video/file metadata and URL hints/errors; do NOT implement downloading Channels links. Make one focused improvement, run relevant tests, commit, and push to origin feature/wechat-article-support. If nothing to change, verify tests and make no empty commit. Complete with COMPLETE",
+  "startedAt": "2026-08-20T23:37:33.703Z",
+  "model": "github-copilot/claude-sonnet-4.6",
+  "agent": "openclaw"
+}

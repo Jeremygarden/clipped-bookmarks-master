@@ -22,7 +22,7 @@ if [[ -z "$LINKS" || ! -f "$LINKS" ]]; then
 fi
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/xiaohongshu "$OUT"/videochannel
+mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/xiaohongshu "$OUT"/wechat_channels
 
 count=0
 while IFS= read -r line; do
@@ -46,6 +46,22 @@ while IFS= read -r line; do
     plat=xiaohongshu
     bash "$SKILL_DIR/download_media.sh" "$url" --dir "$OUT/$plat"
     echo "    [视频类] 已下载。请用 extract_audio.sh + transcribe.sh 完成转写后提炼。"
+  elif [[ "$url" == *"channels.weixin.qq.com"* || "$url" == *"finder.video.qq.com"* || "$url" == *"视频号"* ]]; then
+    plat=wechat_channels
+    hint="$OUT/$plat/_hint_$count.json"
+    python3 - "$url" > "$hint" <<'PY'
+import json
+import sys
+from dataclasses import asdict
+from clipped_bookmarks.extractors.wechat_video import WeChatVideoExtractor
+
+item = WeChatVideoExtractor().extract(sys.argv[1])
+payload = asdict(item)
+payload["platform"] = item.platform.value
+payload["source_type"] = item.source_type.value
+print(json.dumps(payload, ensure_ascii=False, indent=2))
+PY
+    echo "    [视频号] 已记录链接提示 -> $hint；不下载视频号链接，请让用户上传/导出文件后继续。"
   else
     echo "    [跳过] 不支持的平台链接"
   fi

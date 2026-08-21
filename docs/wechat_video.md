@@ -6,8 +6,9 @@
 
 - 识别 `channels.weixin.qq.com`、`finder.video.qq.com`、`视频号` 等链接/文本提示。
 - 对链接输入返回结构化 `BookmarkItem`，标记 `requires_upload=True`。
-- 对用户上传/导出的本地视频文件创建可处理的 `BookmarkItem` 和 `video` asset。
-- 支持扩展名：`.mp4`、`.mov`、`.m4v`、`.webm`、`.mkv`、`.avi`。
+- 对用户上传/导出的本地视频、音频、转写/元数据文件创建可处理的 `BookmarkItem` 和 asset。
+- 视频扩展名：`.mp4`、`.mov`、`.m4v`、`.webm`、`.mkv`、`.avi`。
+- 音频/转写文件扩展名：`.mp3`、`.m4a`、`.wav`、`.aac`、`.flac`、`.srt`、`.vtt`、`.txt`、`.md`、`.json`。
 
 ## 推荐流程
 
@@ -22,4 +23,4 @@ bash scripts/extract_audio.sh /path/to/wechat-channel.mp4
 bash scripts/transcribe.sh /path/to/wechat-channel.mp3 --api openai
 ```
 
-若只有视频号链接，先提示用户上传视频文件，再继续音频提取与转写。
+若只有视频号链接，只记录结构化提示和错误信息，先提示用户上传/导出视频、音频或转写文件，再继续音频提取、转写或笔记整理；不要尝试下载视频号链接。
