@@ -34,6 +34,11 @@ from clipped_bookmarks.router import route_url
 from clipped_bookmarks.schema import Platform, SourceType, UnsupportedPlatformError
 
 try:
+    from clipped_bookmarks.extractors.wechat_article import extract_wechat_article
+except ImportError:  # pragma: no cover - keeps standalone script usable
+    extract_wechat_article = None
+
+try:
     import requests
     from bs4 import BeautifulSoup
 except ImportError:
@@ -137,7 +142,10 @@ def parse_zhihu(html: str) -> dict:
 
 
 # ---------------- 微信公众号 ----------------
-def parse_weixin(html: str) -> dict:
+def parse_weixin(html: str, url: str = "") -> dict:
+    if extract_wechat_article is not None:
+        return extract_wechat_article(html, url=url)
+
     soup = BeautifulSoup(html, "html.parser")
     out = {"platform": "weixin", "title": "", "author": "", "publish_time": "",
            "content": "", "top_comments": [], "raw_html_len": len(html)}
@@ -197,7 +205,7 @@ def main():
     if platform == "zhihu":
         data = parse_zhihu(html)
     elif platform == "weixin":
-        data = parse_weixin(html)
+        data = parse_weixin(html, args.url)
     else:  # pragma: no cover - detect_platform keeps this unreachable
         raise UnsupportedPlatformError(f"Unsupported fetch_text platform: {platform}")
 

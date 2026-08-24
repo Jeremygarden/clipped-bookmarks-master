@@ -22,7 +22,7 @@ if [[ -z "$LINKS" || ! -f "$LINKS" ]]; then
 fi
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/xiaohongshu "$OUT"/videochannel
+mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/xiaohongshu "$OUT"/wechat_channels
 
 count=0
 while IFS= read -r line; do
@@ -55,8 +55,8 @@ while IFS= read -r line; do
     bash "$SKILL_DIR/download_media.sh" "$url" --dir "$OUT/xiaohongshu"
     echo "    [小红书] 已下载/路由。请按平台 extractor/OCR/转写流程提炼。"
   elif [[ "$source_type" == "wechat_channels_file" || "$source_type" == "wechat_channels_video" ]]; then
-    echo "$route_json" > "$OUT/videochannel/_routed_$count.md"
-    echo "    [视频号] 已路由 -> $OUT/videochannel/_routed_$count.md。请用 extract_audio.sh + transcribe.sh 完成转写后提炼。"
+    echo "$route_json" > "$OUT/wechat_channels/_routed_$count.md"
+    echo "    [视频号] 已路由 -> $OUT/wechat_channels/_routed_$count.md。视频号链接不下载；请使用用户上传/导出的视频、音频或转写文件继续。"
   else
     echo "    [跳过] 不支持的平台链接"
   fi
