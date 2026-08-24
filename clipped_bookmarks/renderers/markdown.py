@@ -8,6 +8,29 @@ from typing import Any
 from clipped_bookmarks.schema import BookmarkItem
 
 
+def render_structured_markdown(item: BookmarkItem) -> str:
+    """Render text or local media bookmarks with stable, structured sections.
+
+    This is intentionally renderer-only: extractors mark failure states and
+    attach local audio/video/transcript assets; this function turns that into a
+    predictable Markdown note without invoking platform downloaders.
+    """
+
+    lines = render_markdown(item).rstrip().splitlines()
+    if item.status in {"error", "unsupported"} or item.errors:
+        lines.extend(["", "## Extraction Status", "", f"- Status: {item.status}"])
+        lines.extend(f"- Failure: {error}" for error in item.errors)
+
+    transcript_assets = [asset for asset in item.assets if asset.kind == "transcript"]
+    if transcript_assets:
+        transcript_text = _read_first_local_text(transcript_assets)
+        if transcript_text:
+            lines.extend(["", "## Transcript", "", _format_timestamped_transcript(transcript_text)])
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+
 def render_markdown(item: BookmarkItem) -> str:
     """Render a BookmarkItem as Markdown with a small YAML frontmatter block."""
 
@@ -84,3 +107,38 @@ def _yaml_scalar(value: Any) -> str:
 
 def _tag_slug(tag: str) -> str:
     return tag.strip().replace(" ", "-").replace("#", "")
+
+
+def _read_first_local_text(assets: list) -> str:
+    for asset in assets:
+        if not asset.local_path:
+            continue
+        try:
+            from pathlib import Path
+            path = Path(asset.local_path)
+            if path.exists() and path.is_file():
+                return path.read_text(encoding="utf-8").strip()
+        except UnicodeDecodeError:
+            return ""
+    return ""
+
+
+def _format_timestamped_transcript(text: str) -> str:
+    # Preserve SRT/VTT timing as readable timestamped bullets for video notes.
+    import re
+    blocks = re.split(r"\n\s*\n", text.strip())
+    bullets = []
+    for block in blocks:
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        if lines and lines[0].isdigit():
+            lines = lines[1:]
+        if not lines:
+            continue
+        timing = lines[0]
+        body = " ".join(lines[1:]).strip()
+        m = re.match(r"([0-9:,\.]+)\s*-->\s*([0-9:,\.]+)", timing)
+        if m and body:
+            bullets.append(f"- [{m.group(1).replace(',', '.')}] {body}")
+        else:
+            bullets.append("- " + " ".join(lines))
+    return "\n".join(bullets) if bullets else text.strip()
