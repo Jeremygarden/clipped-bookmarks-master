@@ -206,3 +206,16 @@ def test_login_wall_and_forbidden_page_markers_are_reported_without_content_fall
     assert data["extra"]["fallbacks"]["content"] == "login_required"
     assert data["raw_data"]["dynamic_fallback"] is False
     assert data["raw_data"]["comments_fallback"] == "login_required"
+
+def test_dom_publish_time_does_not_use_upvote_time_element():
+    html = '''
+    <h1>问题</h1>
+    <div class="AnswerCard" data-id="1">
+      <a class="AuthorInfo-name">作者</a>
+      <button class="VoteButton--up"><time>1234</time> 赞同</button>
+      <div class="RichText"><p>正文足够长。</p></div>
+    </div>
+    '''
+    data = extract_zhihu(html, "https://www.zhihu.com/question/1/answer/1")
+    assert data["publish_time"] == ""
+    assert data["upvote_count"] == 1234

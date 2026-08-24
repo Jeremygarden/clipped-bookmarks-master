@@ -73,6 +73,25 @@ def _clean_text(s: str) -> str:
     return re.sub(r"\s+", " ", s or "").strip()
 
 
+LOGIN_WALL_MARKERS = (
+    "登录后查看", "登录后你可以", "登录即可查看", "请先登录", "login", "sign in",
+)
+ANTI_BOT_MARKERS = (
+    "安全验证", "请完成验证", "访问异常", "captcha", "unhuman", "robot check", "verify you are human",
+)
+HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml", "application/xml", "text/xml", "")
+
+
+def _looks_like_login_wall(html: str) -> bool:
+    haystack = _clean_text(BeautifulSoup(html or "", "html.parser").get_text(" ")[:4000]).lower()
+    return any(marker.lower() in haystack for marker in LOGIN_WALL_MARKERS)
+
+
+def _looks_like_anti_bot(html: str) -> bool:
+    haystack = (html or "").lower() + " " + _clean_text(BeautifulSoup(html or "", "html.parser").get_text(" ")[:4000]).lower()
+    return any(marker.lower() in haystack for marker in ANTI_BOT_MARKERS)
+
+
 def fetch_html(url: str, cookies_path: str = None) -> str:
     sess = requests.Session()
     sess.headers.update(HEADERS)
@@ -84,8 +103,17 @@ def fetch_html(url: str, cookies_path: str = None) -> str:
         except Exception as e:  # noqa
             sys.stderr.write(f"[警告] 读取 cookies 失败: {e}\n")
     resp = sess.get(url, timeout=30)
-    resp.encoding = resp.apparent_encoding or "utf-8"
-    return resp.text
+    resp.raise_for_status()
+    content_type = (resp.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
+    if content_type not in HTML_CONTENT_TYPES:
+        raise RuntimeError(f"非 HTML 响应: content-type={content_type or 'unknown'}")
+    resp.encoding = resp.apparent_encoding or resp.encoding or "utf-8"
+    html = resp.text
+    if _looks_like_anti_bot(html):
+        raise RuntimeError("疑似反爬/安全验证页面，请稍后重试或使用浏览器登录态")
+    if _looks_like_login_wall(html):
+        raise RuntimeError("疑似登录墙页面，请提供有效 cookies 或浏览器登录态")
+    return html
 
 
 # ---------------- 知乎 ----------------

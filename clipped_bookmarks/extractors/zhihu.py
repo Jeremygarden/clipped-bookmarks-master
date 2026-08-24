@@ -319,11 +319,13 @@ def dom_items(soup: BeautifulSoup, fallback_title: str = "") -> List[Dict[str, A
                 continue
             seen_content.add(content)
             author_node = node.select_one(".AuthorInfo-name, .UserLink-name, [itemprop='name']")
-            time_node = node.select_one("meta[itemprop='dateCreated'], meta[itemprop='datePublished'], time")
             vote_node = node.select_one("meta[itemprop='upvoteCount'], .VoteButton--up, button[aria-label*='赞同']")
+            time_node = node.select_one("meta[itemprop='dateCreated'], meta[itemprop='datePublished'], time[datetime], time[itemprop], [data-za-detail-view-path-module='AnswerItem'] time")
             publish_time = ""
             if time_node:
                 publish_time = clean_text(time_node.get("content") or time_node.get("datetime") or time_node.get_text(" ", strip=True))
+                if parse_count(publish_time) is not None and not re.search(r"\d{4}[-年/]\d{1,2}|\d{1,2}[-月/]\d{1,2}|\d{1,2}:\d{2}", publish_time):
+                    publish_time = ""
             upvote_count = None
             if vote_node:
                 upvote_count = parse_count(vote_node.get("content") or vote_node.get("aria-label") or vote_node.get_text(" ", strip=True))

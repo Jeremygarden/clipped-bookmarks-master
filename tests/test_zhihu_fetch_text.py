@@ -39,9 +39,13 @@ def test_fetch_html_loads_netscape_cookiejar(monkeypatch):
         captured = {}
 
         class FakeResponse:
-            text = "ok"
+            text = "<html><body>ok</body></html>"
             apparent_encoding = "utf-8"
             encoding = "utf-8"
+            headers = {"content-type": "text/html; charset=utf-8"}
+
+            def raise_for_status(self):
+                return None
 
         class FakeSession:
             def __init__(self):
@@ -55,5 +59,5 @@ def test_fetch_html_loads_netscape_cookiejar(monkeypatch):
 
         import scripts.fetch_text as ft
         monkeypatch.setattr(ft.requests, "Session", FakeSession)
-        assert fetch_html("https://www.zhihu.com/question/1", f.name) == "ok"
+        assert fetch_html("https://www.zhihu.com/question/1", f.name) == "<html><body>ok</body></html>"
         assert captured["cookies"].get("z_c0") == "token"
