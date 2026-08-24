@@ -4,22 +4,45 @@
 
 ## Overview
 
-**Clipped Bookmarks Master** is a CodeBuddy Skill that fetches content from your saved/liked posts across **Zhihu, Xiaohongshu (RED), Bilibili, WeChat Video Channels, and WeChat Official Accounts**, cleans them up, and outputs structured Markdown notes.
+**Clipped Bookmarks Master** is a CodeBuddy Skill that routes and renders saved/liked posts across the current core scope: **WeChat Official Accounts, Xiaohongshu (RED), Xiaohongshu collections, WeChat Video Channels files/videos, and Zhihu**, cleans them up, and outputs structured Markdown notes.
 
 | Content Type | Platforms | What It Does |
 |-------------|-----------|--------------|
-| **Text** | Zhihu (Q&A, articles), WeChat Official Accounts | Fetches body text → strips ads/noise → keeps core arguments + top-voted comments |
-| **Video** | Xiaohongshu, Bilibili, WeChat Video Channels | Downloads video → extracts audio → transcribes with timestamps → AI-summarizes into structured notes (key points / steps / checklists) |
+| **Text** | WeChat Official Accounts, Zhihu | Fetches body text → strips ads/noise → keeps core arguments |
+| **Image/Text/Video** | Xiaohongshu notes, Xiaohongshu collections | Routes note/collection URLs into the shared `BookmarkItem` schema for extractor/rendering stages |
+| **Video** | WeChat Video Channels files/videos | User-provided file or supported video source → transcription pipeline → structured notes |
 
 ## Supported Platforms
 
-| Platform | Type | Notes |
-|----------|------|-------|
-| [Zhihu](https://www.zhihu.com) | Text | Q&A answers, articles. Supports multi-answer pages. |
-| [Xiaohongshu](https://www.xiaohongshu.com) | Video / Image-Text | Video notes go through transcription pipeline. Image-text notes use OCR + body text. |
-| [Bilibili](https://www.bilibili.com) | Video | **Timestamps preserved** for key-frame jumping. Can also fetch video description and top danmu/comments. |
-| WeChat Video Channels | Video | No official download API — user uploads the video file directly. |
-| WeChat Official Accounts | Text | Strips QR-code promotions and "read more" blocks. |
+| Platform / Source | Type | Core Status | Notes |
+|-------------------|------|-------------|-------|
+| WeChat Official Accounts (`mp.weixin.qq.com/s/...`) | Text | Supported | Routes as `wechat_article`; strips QR-code promotions and "read more" blocks in extractor stages. |
+| [Xiaohongshu](https://www.xiaohongshu.com) notes / `xhslink.cn` / `xhslink.com` | Image/Text/Video | Supported | Routes as `xiaohongshu_note`; short links are marked `requires_expansion`. |
+| Xiaohongshu collection item URLs | Collection | Supported | Routes as `xiaohongshu_collection`. |
+| WeChat Video Channels | File / Video | Supported | User-provided video files route as `wechat_channels_file`; channel video URLs route as `wechat_channels_video`. |
+| Zhihu (`zhihu.com/question/.../answer/...`, `zhuanlan.zhihu.com/p/...`) | Text | Supported | Routes as `zhihu_answer` or `zhihu_article`; extraction remains platform-agent work. |
+| Bilibili / `b23.tv` | Video | Unsupported in current core scope | Router raises `UnsupportedPlatformError`; Bilibili is not part of the supported core. |
+
+
+## Core Architecture
+
+The P0 core adds a standard middle layer that platform extractors and renderers share. The active supported platforms are Xiaohongshu, WeChat Video Channels files/videos, WeChat Official Accounts, and Zhihu; Bilibili is intentionally unsupported.
+
+- `clipped_bookmarks.schema.BookmarkItem` — unified schema for `url`, `platform`, `source_type`, `title`, `author`, `published_at`, `content`, `summary`, `tags`, `assets`, `metadata`, `status`, and `errors`.
+- `clipped_bookmarks.router.route_url(source)` — detects supported URLs/files and rejects unsupported platforms such as Bilibili with `UnsupportedPlatformError`.
+- `clipped_bookmarks.renderers.markdown.render_markdown(item)` — renders Markdown with YAML frontmatter for downstream note systems.
+- `clipped_bookmarks.renderers.obsidian` — Obsidian export skeleton using `ObsidianExportConfig`; writing to a vault requires explicit `confirm=True`.
+- `clipped_bookmarks.cli` — minimal CLI for route → Markdown output and optional confirmed Obsidian export.
+- `references/core_handoff.md` — concise contract for platform-agent handoff boundaries and the active platform scope.
+
+Example:
+
+```bash
+python3 -m clipped_bookmarks.cli "https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA" --out note.md
+python3 -m clipped_bookmarks.cli "https://xhslink.cn/o/2HSnq3KBHMZ"
+python3 -m clipped_bookmarks.cli "https://www.zhihu.com/question/123456/answer/789012"
+python3 -m clipped_bookmarks.cli ./wechat-channel-video.mp4 --obsidian-vault ~/Vault --confirm-obsidian
+```
 
 ## Directory Structure
 
@@ -29,12 +52,13 @@ clipped-bookmarks-master/
 ├── README.md                   # This file
 ├── scripts/
 │   ├── install_deps.sh         # Install yt-dlp, whisper, ffmpeg, Python deps
-│   ├── fetch_text.py           # Fetch & extract text content (Zhihu / WeChat OA)
+│   ├── fetch_text.py           # Fetch & extract text content (WeChat OA)
 │   ├── download_media.sh       # Download video/audio (yt-dlp)
 │   ├── extract_audio.sh        # Video → 16k mono MP3 (ffmpeg)
 │   ├── transcribe.sh           # Audio → timestamped transcript (OpenAI API or local whisper)
 │   └── batch_process.sh        # Batch-process a list of URLs
 └── references/
+    ├── core_handoff.md         # Core/platform-agent boundary and active scope
     ├── templates.md            # Markdown output templates (text & video)
     └── field_spec.md           # Per-platform field specs & cleaning rules
 ```
@@ -58,23 +82,24 @@ Make sure `ffmpeg` is available:
 sudo apt-get install -y ffmpeg
 ```
 
-### 2. Process a Zhihu Answer (Text)
+### 2. Process a WeChat Official Account Article (Text)
 
 ```bash
 # Fetch raw content
-python3 scripts/fetch_text.py "https://www.zhihu.com/question/633780178/answer/1997868452766058023" \
+python3 scripts/fetch_text.py "https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA" \
   --out raw.json
 
 # The Agent then cleans ads/noise and produces a Markdown note
 # from the raw JSON using references/templates.md
 ```
 
-### 3. Process a Bilibili Video (Video)
+### 3. Process a WeChat Channels Video File (Video)
 
 ```bash
 # Download
-bash scripts/download_media.sh "https://www.bilibili.com/video/BV1xx411c7mD" \
-  --dir ./downloads
+python3 -m clipped_bookmarks.cli ./wechat-channel-video.mp4 --out routed.md
+
+# Then process the uploaded file
 
 # Extract audio
 bash scripts/extract_audio.sh downloads/some_video.mp4
@@ -92,9 +117,10 @@ bash scripts/transcribe.sh downloads/some_video.mp3 --api openai
 Create `links.txt` (one URL per line):
 
 ```
-https://www.zhihu.com/question/633780178/answer/1997868452766058023
-https://www.bilibili.com/video/BV1xx411c7mD
-https://mp.weixin.qq.com/s/xxxxxxxx
+https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA
+https://xhslink.cn/o/2HSnq3KBHMZ
+https://xhslink.com/a/abc123
+https://www.xiaohongshu.com/collection/item/68930d3b02f5000000000001
 ```
 
 Run:
@@ -107,7 +133,7 @@ The script auto-detects each platform and routes to the appropriate pipeline.
 
 ## Output Templates
 
-### Text Note (Zhihu / WeChat OA)
+### Text Note (WeChat OA)
 
 ```markdown
 # {Title}
@@ -129,7 +155,7 @@ The script auto-detects each platform and routes to the appropriate pipeline.
 #bookmarks #{platform} #{topic}
 ```
 
-### Video Note (Bilibili / Xiaohongshu / Video Channels)
+### Video Note (Xiaohongshu / Video Channels)
 
 ```markdown
 # {Video Title}
@@ -158,7 +184,7 @@ The script auto-detects each platform and routes to the appropriate pipeline.
 #bookmarks #{platform} #{topic}
 ```
 
-> **Note:** Bilibili and WeChat Video Channels **must** include the "Key Timestamps" section for easy key-frame jumping.
+> **Note:** WeChat Video Channels notes should include the "Key Timestamps" section when transcripts include timing data. Bilibili is unsupported in the current core scope.
 
 ## Environment Variables
 
@@ -171,7 +197,7 @@ The script auto-detects each platform and routes to the appropriate pipeline.
 | Issue | Cause | Fix |
 |-------|-------|-----|
 | `fetch_text.py` returns empty | Anti-bot / login wall | Add `--cookies cookies.txt` with logged-in cookies, or paste content manually |
-| `download_media.sh` fails | Platform restriction / geo-block | Try `--cookies-from-browser chrome` for Bilibili; for Video Channels, upload the file directly |
+| `download_media.sh` fails | Platform restriction / geo-block | For Video Channels, upload the file directly; Bilibili is unsupported in the current core scope |
 | `transcribe.sh` errors | Missing ASR deps / no API key | Run `install_deps.sh` or set `OPENAI_API_KEY` |
 | Content behind paywall | — | Stop and inform user; **never fabricate content** |
 

@@ -22,7 +22,7 @@ if [[ -z "$LINKS" || ! -f "$LINKS" ]]; then
 fi
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/bilibili "$OUT"/xiaohongshu "$OUT"/videochannel
+mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/xiaohongshu "$OUT"/videochannel
 
 count=0
 while IFS= read -r line; do
@@ -32,9 +32,18 @@ while IFS= read -r line; do
   echo "=========================================="
   echo "[$count] 处理: $url"
 
-  if [[ "$url" == *"zhihu.com"* || "$url" == *"mp.weixin.qq.com"* ]]; then
-    # 文字类
-    plat=$( [[ "$url" == *"zhihu"* ]] && echo zhihu || echo weixin )
+  if ! route_json=$(python3 -m clipped_bookmarks.cli "$url" 2>/tmp/cbm_batch_route_error.$$); then
+    echo "    [跳过] 不支持的平台链接: $(cat /tmp/cbm_batch_route_error.$$)"
+    rm -f /tmp/cbm_batch_route_error.$$
+    continue
+  fi
+  rm -f /tmp/cbm_batch_route_error.$$
+
+  source_type=$(python3 -c 'import re,sys; text=sys.stdin.read(); m=re.search(r"^source_type: \"([^\"]+)\"", text, re.M); print(m.group(1) if m else "")' <<<"$route_json")
+  platform=$(python3 -c 'import re,sys; text=sys.stdin.read(); m=re.search(r"^platform: \"([^\"]+)\"", text, re.M); print(m.group(1) if m else "")' <<<"$route_json")
+
+  if [[ "$source_type" == "zhihu_answer" || "$source_type" == "zhihu_article" || "$source_type" == "wechat_article" ]]; then
+    plat=$( [[ "$platform" == "zhihu" ]] && echo zhihu || echo weixin )
     raw="$OUT/$plat/_raw_$count.json"
     if [[ -n "$COOKIES" ]]; then
       python3 "$SKILL_DIR/fetch_text.py" "$url" --out "$raw" --cookies "$COOKIES"
@@ -42,10 +51,12 @@ while IFS= read -r line; do
       python3 "$SKILL_DIR/fetch_text.py" "$url" --out "$raw"
     fi
     echo "    [文字类] 已抓取原始内容 -> $raw （交由 Agent 提炼为 Markdown）"
-  elif [[ "$url" == *"bilibili.com"* || "$url" == *"b23.tv"* || "$url" == *"xiaohongshu.com"* || "$url" == *"xhslink.com"* ]]; then
-    plat=$( [[ "$url" == *"bili"* ]] && echo bilibili || echo xiaohongshu )
-    bash "$SKILL_DIR/download_media.sh" "$url" --dir "$OUT/$plat"
-    echo "    [视频类] 已下载。请用 extract_audio.sh + transcribe.sh 完成转写后提炼。"
+  elif [[ "$source_type" == "xiaohongshu_note" || "$source_type" == "xiaohongshu_collection" ]]; then
+    bash "$SKILL_DIR/download_media.sh" "$url" --dir "$OUT/xiaohongshu"
+    echo "    [小红书] 已下载/路由。请按平台 extractor/OCR/转写流程提炼。"
+  elif [[ "$source_type" == "wechat_channels_file" || "$source_type" == "wechat_channels_video" ]]; then
+    echo "$route_json" > "$OUT/videochannel/_routed_$count.md"
+    echo "    [视频号] 已路由 -> $OUT/videochannel/_routed_$count.md。请用 extract_audio.sh + transcribe.sh 完成转写后提炼。"
   else
     echo "    [跳过] 不支持的平台链接"
   fi

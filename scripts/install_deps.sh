@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# 安装收藏夹整理师所需的依赖：yt-dlp（视频下载）、语音识别相关
+# 安装收藏夹整理师所需的依赖：yt-dlp（当前支持媒体源下载）、语音识别相关
 set -euo pipefail
 
 echo "==> 安装收藏夹整理师依赖..."
 
-# 1. yt-dlp（视频/音频下载，支持 B站/小红书等）
+# 1. yt-dlp（视频/音频下载，用于小红书等当前支持媒体源）
 if command -v yt-dlp >/dev/null 2>&1; then
   echo "[ok] yt-dlp 已存在，尝试升级"
   pip3 install -U yt-dlp >/dev/null 2>&1 || sudo pip3 install -U yt-dlp >/dev/null 2>&1 || true

@@ -24,6 +24,14 @@ import json
 import argparse
 import re
 from datetime import datetime
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from clipped_bookmarks.router import route_url
+from clipped_bookmarks.schema import Platform, SourceType, UnsupportedPlatformError
 
 try:
     import requests
@@ -43,11 +51,25 @@ HEADERS = {
 
 
 def detect_platform(url: str) -> str:
-    if "zhihu.com" in url:
+    """Return the legacy fetch_text parser key for a core-supported text URL.
+
+    The script delegates scope decisions to the shared core router so platform
+    support stays aligned with clipped_bookmarks.platforms. fetch_text only parses
+    text-like sources: WeChat official account articles and Zhihu answers/articles.
+    """
+
+    item = route_url(url)
+    if item.platform == Platform.ZHIHU:
         return "zhihu"
-    if "mp.weixin.qq.com" in url or "weixin.qq.com" in url:
+    if (
+        item.platform == Platform.WECHAT_OFFICIAL_ACCOUNT
+        and item.source_type == SourceType.WECHAT_ARTICLE
+    ):
         return "weixin"
-    return "unknown"
+    raise UnsupportedPlatformError(
+        f"fetch_text only supports Zhihu and WeChat official account article URLs; "
+        f"got {item.platform.value}/{item.source_type.value}"
+    )
 
 
 def _clean_text(s: str) -> str:
@@ -160,7 +182,12 @@ def main():
     ap.add_argument("--cookies", help="cookies.txt (Netscape 格式)，用于登录态内容")
     args = ap.parse_args()
 
-    platform = detect_platform(args.url)
+    try:
+        platform = detect_platform(args.url)
+    except (UnsupportedPlatformError, ValueError) as e:
+        sys.stderr.write(f"[错误] 不支持的来源: {e}\n")
+        sys.exit(2)
+
     try:
         html = fetch_html(args.url, args.cookies)
     except Exception as e:  # noqa
@@ -171,18 +198,8 @@ def main():
         data = parse_zhihu(html)
     elif platform == "weixin":
         data = parse_weixin(html)
-    else:
-        # 兜底：用 trafilatura 抽取
-        try:
-            import trafilatura
-            txt = trafilatura.extract(html)
-            data = {"platform": "unknown", "title": "", "author": "",
-                    "publish_time": "", "content": txt or "", "top_comments": [],
-                    "raw_html_len": len(html)}
-        except Exception:
-            data = {"platform": "unknown", "title": "", "author": "",
-                    "publish_time": "", "content": "", "top_comments": [],
-                    "raw_html_len": len(html)}
+    else:  # pragma: no cover - detect_platform keeps this unreachable
+        raise UnsupportedPlatformError(f"Unsupported fetch_text platform: {platform}")
 
     payload = json.dumps(data, ensure_ascii=False, indent=2)
     print(payload)
