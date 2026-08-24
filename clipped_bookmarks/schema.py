@@ -30,6 +30,7 @@ class SourceType(str, Enum):
     XIAOHONGSHU_COLLECTION = "xiaohongshu_collection"
     WECHAT_CHANNELS_FILE = "wechat_channels_file"
     WECHAT_CHANNELS_VIDEO = "wechat_channels_video"
+    ZHIHU_QUESTION = "zhihu_question"
     ZHIHU_ANSWER = "zhihu_answer"
     ZHIHU_ARTICLE = "zhihu_article"
 
@@ -40,6 +41,7 @@ SUPPORTED_SOURCE_TYPES: tuple[SourceType, ...] = (
     SourceType.XIAOHONGSHU_COLLECTION,
     SourceType.WECHAT_CHANNELS_FILE,
     SourceType.WECHAT_CHANNELS_VIDEO,
+    SourceType.ZHIHU_QUESTION,
     SourceType.ZHIHU_ANSWER,
     SourceType.ZHIHU_ARTICLE,
 )
@@ -51,6 +53,7 @@ SOURCE_TYPE_PLATFORM: dict[SourceType, Platform] = {
     SourceType.XIAOHONGSHU_COLLECTION: Platform.XIAOHONGSHU,
     SourceType.WECHAT_CHANNELS_FILE: Platform.WECHAT_CHANNELS,
     SourceType.WECHAT_CHANNELS_VIDEO: Platform.WECHAT_CHANNELS,
+    SourceType.ZHIHU_QUESTION: Platform.ZHIHU,
     SourceType.ZHIHU_ANSWER: Platform.ZHIHU,
     SourceType.ZHIHU_ARTICLE: Platform.ZHIHU,
 }

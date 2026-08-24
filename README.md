@@ -8,7 +8,7 @@
 
 | Content Type | Platforms | What It Does |
 |-------------|-----------|--------------|
-| **Text** | WeChat Official Accounts, Zhihu answers/articles | Fetches body text → strips ads/noise → keeps core arguments and useful high-signal comments |
+| **Text** | WeChat Official Accounts, Zhihu questions/answers/articles | Fetches body text → strips ads/noise → keeps core arguments and useful high-signal comments |
 | **Image/Text/Video** | Xiaohongshu notes and collections | Routes note/collection URLs into the shared `BookmarkItem` schema for extractor/OCR/download stages |
 | **Video / Audio / Transcript** | WeChat Video Channels user-provided files, plus routed Channels links | Local file → audio/transcription pipeline → structured notes with timestamps; public Channels links are routed but not downloaded |
 
@@ -17,7 +17,7 @@
 | Platform / Source | Type | Core Status | Notes |
 |-------------------|------|-------------|-------|
 | WeChat Official Accounts (`mp.weixin.qq.com/s/...`) | Text | Supported | Routes as `wechat_article`; extractor removes QR-code promotions, "read more" blocks, login/anti-bot risk signals, and returns images/comment metadata. |
-| Zhihu (`zhihu.com/question/.../answer/...`, `zhuanlan.zhihu.com/p/...`) | Text | Supported | Routes as `zhihu_answer` or `zhihu_article`; extraction keeps answer/article content and high-signal comments where available. |
+| Zhihu (`zhihu.com/question/...`, `zhihu.com/question/.../answer/...`, `zhuanlan.zhihu.com/p/...`) | Text | Supported | Routes as `zhihu_question`, `zhihu_answer`, or `zhihu_article`; extraction keeps answer/article content and high-signal comments where available. |
 | Xiaohongshu (`xiaohongshu.com`, `xhslink.cn`, `xhslink.com`) | Image/Text/Video | Supported | Routes as `xiaohongshu_note`; short links are marked `requires_expansion`. |
 | Xiaohongshu collection item URLs | Collection | Supported | Routes as `xiaohongshu_collection`. |
 | WeChat Video Channels local files (`.mp4`, `.m4a`, `.srt`, etc.) | File | Supported | Routes as `wechat_channels_file`; user-uploaded/exported media or transcript is required for processing. |

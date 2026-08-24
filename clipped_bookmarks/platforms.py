@@ -58,9 +58,9 @@ SUPPORTED_PLATFORM_REGISTRY: dict[Platform, PlatformDescriptor] = {
     Platform.ZHIHU: PlatformDescriptor(
         platform=Platform.ZHIHU,
         display_name="知乎",
-        source_types=(SourceType.ZHIHU_ANSWER, SourceType.ZHIHU_ARTICLE),
+        source_types=(SourceType.ZHIHU_QUESTION, SourceType.ZHIHU_ANSWER, SourceType.ZHIHU_ARTICLE),
         url_hosts=("zhihu.com", "zhuanlan.zhihu.com"),
-        notes="Question answers and Zhuanlan articles; extraction remains platform-agent work.",
+        notes="Questions, question answers, and Zhuanlan articles; extraction remains platform-agent work. Questions may contain multiple answers.",
     ),
 }
 

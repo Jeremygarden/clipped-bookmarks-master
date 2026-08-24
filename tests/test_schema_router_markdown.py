@@ -5,6 +5,7 @@ WECHAT_SAMPLE = "https://mp.weixin.qq.com/s/ENwXC3hEbXnq-5hGEE6keA"
 XHS_SAMPLE = "https://xhslink.cn/o/2HSnq3KBHMZ"
 XHS_COLLECTION_SAMPLE = "https://www.xiaohongshu.com/collection/item/68930d3b02f5000000000001?xhsshare=&appuid=5e7f4c87000000000100a104&apptime=1787213955&share_id=b4a00b1e38444f21b696260e9df07c6b&share_channel=copy_link"
 
+ZHIHU_QUESTION_SAMPLE = "https://www.zhihu.com/question/123456"
 ZHIHU_ANSWER_SAMPLE = "https://www.zhihu.com/question/123456/answer/789012"
 ZHIHU_ARTICLE_SAMPLE = "https://zhuanlan.zhihu.com/p/123456"
 
@@ -36,9 +37,12 @@ def test_routes_wechat_channels_local_file():
     assert item.source_type == SourceType.WECHAT_CHANNELS_FILE
 
 
-def test_routes_zhihu_answer_and_article():
+def test_routes_zhihu_question_answer_and_article():
+    question = route_url(ZHIHU_QUESTION_SAMPLE)
     answer = route_url(ZHIHU_ANSWER_SAMPLE)
     article = route_url(ZHIHU_ARTICLE_SAMPLE)
+    assert question.platform == Platform.ZHIHU
+    assert question.source_type == SourceType.ZHIHU_QUESTION
     assert answer.platform == Platform.ZHIHU
     assert answer.source_type == SourceType.ZHIHU_ANSWER
     assert article.platform == Platform.ZHIHU
@@ -168,6 +172,7 @@ def test_bilibili_short_links_are_unsupported():
 def test_descriptor_for_source_type_maps_active_core_sources():
     from clipped_bookmarks.platforms import descriptor_for_source_type
 
+    assert descriptor_for_source_type(SourceType.ZHIHU_QUESTION).platform == Platform.ZHIHU
     assert descriptor_for_source_type(SourceType.ZHIHU_ANSWER).platform == Platform.ZHIHU
     assert descriptor_for_source_type("wechat_channels_file").platform == Platform.WECHAT_CHANNELS
     assert descriptor_for_source_type("unknown") is None

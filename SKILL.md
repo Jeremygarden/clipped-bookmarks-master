@@ -91,7 +91,7 @@ updated: "2026-08-24"
 ## 核心中间层
 
 - `BookmarkItem`：所有平台统一输出字段，包括 `platform`、`source_type`、`url`、`title`、`author`、`published_at`、`content`、`summary`、`tags`、`assets`、`metadata`、`status`、`errors`。
-- `route_url(source)`：只接受微信公众号、小红书笔记、小红书收藏合集、微信视频号文件/视频、知乎回答/文章；B站返回 unsupported。
+- `route_url(source)`：只接受微信公众号、小红书笔记、小红书收藏合集、微信视频号文件/视频、知乎问题/回答/文章；B站返回 unsupported。
 - `render_markdown(item)`：输出带 YAML frontmatter 的标准 Markdown。
 - `ObsidianExportConfig` / `export_to_obsidian(...)`：Obsidian 导出骨架；写入 vault 前必须显式 `confirm=True` 或 CLI `--confirm-obsidian`。
 - CLI：`python3 -m clipped_bookmarks.cli <source> [--out note.md] [--obsidian-vault PATH --confirm-obsidian]`。

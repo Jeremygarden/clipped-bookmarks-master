@@ -19,7 +19,7 @@ def route_url(source: str) -> BookmarkItem:
     - Xiaohongshu note links (xhslink.cn/xhslink.com, xiaohongshu.com/explore|discovery/item)
     - Xiaohongshu collection item links (xiaohongshu.com/collection/item/...)
     - WeChat Channels local uploaded files or channel video links
-    - Zhihu answers and Zhuanlan articles
+    - Zhihu questions, answers, and Zhuanlan articles
     """
 
     if not source or not source.strip():
@@ -89,6 +89,13 @@ def route_url(source: str) -> BookmarkItem:
                 platform=Platform.ZHIHU,
                 source_type=SourceType.ZHIHU_ANSWER,
                 metadata={"input_kind": "url"},
+            )
+        if path.startswith("/question/"):
+            return BookmarkItem(
+                url=source,
+                platform=Platform.ZHIHU,
+                source_type=SourceType.ZHIHU_QUESTION,
+                metadata={"input_kind": "url", "may_contain_multiple_answers": True},
             )
         if host == "zhuanlan.zhihu.com" or path.startswith("/p/"):
             return BookmarkItem(

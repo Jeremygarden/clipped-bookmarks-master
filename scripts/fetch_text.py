@@ -2,28 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 fetch_text.py - 收藏夹整理师 · 文字类抓取
-抓取知乎 / 微信公众号 等文字内容，初步提取正文与高赞评论。
-
-用法:
-    python3 fetch_text.py <url> [--out raw.txt] [--cookies cookies.txt]
-输出:
-    打印 JSON 到 stdout，同时若指定 --out 则写入文件。
-    JSON 字段:
-      platform    : zhihu / weixin / unknown
-      title       : 标题
-      author      : 作者
-      publish_time: 发布时间
-      content     : 正文纯文本（已去除广告/导航噪声）
-      top_comments: [{author, likes, text}] 高赞评论（已初步筛选）
-      raw_html_len: 原始 HTML 长度（调试用）
-依赖:
-    requests, beautifulsoup4, trafilatura(可选)
+抓取知乎 / 微信公众号等文字内容，初步提取正文与高赞评论。
 """
-import sys
-import json
 import argparse
+import json
 import re
+import sys
 from datetime import datetime
+from http.cookiejar import MozillaCookieJar
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +18,11 @@ if str(REPO_ROOT) not in sys.path:
 
 from clipped_bookmarks.router import route_url
 from clipped_bookmarks.schema import Platform, SourceType, UnsupportedPlatformError
+
+try:
+    from clipped_bookmarks.extractors.zhihu import extract_zhihu
+except ImportError:  # pragma: no cover - keeps standalone script usable
+    extract_zhihu = None
 
 try:
     from clipped_bookmarks.extractors.wechat_article import extract_wechat_article
@@ -56,20 +47,17 @@ HEADERS = {
 
 
 def detect_platform(url: str) -> str:
-    """Return the legacy fetch_text parser key for a core-supported text URL.
+    """Return the fetch_text parser key for supported text URLs.
 
-    The script delegates scope decisions to the shared core router so platform
-    support stays aligned with clipped_bookmarks.platforms. fetch_text only parses
-    text-like sources: WeChat official account articles and Zhihu answers/articles.
+    Scope is delegated to the shared router so this script stays aligned with the
+    product core. Only text-like sources are accepted here: WeChat Official
+    Account articles and Zhihu answers/articles.
     """
 
     item = route_url(url)
-    if item.platform == Platform.ZHIHU:
+    if item.platform == Platform.ZHIHU and item.source_type in {SourceType.ZHIHU_QUESTION, SourceType.ZHIHU_ANSWER, SourceType.ZHIHU_ARTICLE}:
         return "zhihu"
-    if (
-        item.platform == Platform.WECHAT_OFFICIAL_ACCOUNT
-        and item.source_type == SourceType.WECHAT_ARTICLE
-    ):
+    if item.platform == Platform.WECHAT_OFFICIAL_ACCOUNT and item.source_type == SourceType.WECHAT_ARTICLE:
         return "weixin"
     raise UnsupportedPlatformError(
         f"fetch_text only supports Zhihu and WeChat official account article URLs; "
@@ -78,19 +66,17 @@ def detect_platform(url: str) -> str:
 
 
 def _clean_text(s: str) -> str:
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
+    return re.sub(r"\s+", " ", s or "").strip()
 
 
 def fetch_html(url: str, cookies_path: str = None) -> str:
     sess = requests.Session()
     sess.headers.update(HEADERS)
     if cookies_path:
-        # Netscape cookie jar 格式
         try:
-            cj = requests.cookies.MozillaCookieJar(cookies_path)
+            cj = MozillaCookieJar(cookies_path)
             cj.load(ignore_discard=True, ignore_expires=True)
-            sess.cookies = cj
+            sess.cookies.update(cj)
         except Exception as e:  # noqa
             sys.stderr.write(f"[警告] 读取 cookies 失败: {e}\n")
     resp = sess.get(url, timeout=30)
@@ -99,45 +85,29 @@ def fetch_html(url: str, cookies_path: str = None) -> str:
 
 
 # ---------------- 知乎 ----------------
-def parse_zhihu(html: str) -> dict:
+def parse_zhihu(html: str, url: str = "") -> dict:
+    if extract_zhihu is not None:
+        return extract_zhihu(html, url=url)
+
     soup = BeautifulSoup(html, "html.parser")
     out = {"platform": "zhihu", "title": "", "author": "", "publish_time": "",
-           "content": "", "top_comments": [], "raw_html_len": len(html)}
-
-    # 标题
-    t = soup.find("h1")
+           "upvote_count": None, "content": "", "top_comments": [],
+           "raw_html_len": len(html), "extra": {"requires_login": False, "anti_bot": False}}
+    t = soup.find("h1") or soup.select_one(".QuestionHeader-title, .Post-Title, title")
     if t:
         out["title"] = _clean_text(t.get_text())
-
-    # 回答正文（RichText / 多段落）
     answer = soup.select_one(".AnswerCard, .RichText, .Post-RichTextContainer")
     if answer:
-        # 移除广告/推广节点
-        for bad in answer.select(".Advert, .Promotion, .KfeCollection-..."):
+        for bad in answer.select(".Advert, .Promotion, .KfeCollection-PurchaseBtn"):
             bad.decompose()
         paras = [p.get_text(" ", strip=True) for p in answer.find_all(["p", "li"])]
         out["content"] = "\n".join(_clean_text(p) for p in paras if p)
-
-    # 答主与赞同
     au = soup.select_one(".AuthorInfo-name, .UserLink-name")
     if au:
         out["author"] = _clean_text(au.get_text())
-    vote = soup.select_one(".VoteButton--up, .ContentItem-actions [itemprop='upvoteCount']")
+    vote = soup.select_one("meta[itemprop='upvoteCount'], .VoteButton--up, .ContentItem-actions [itemprop='upvoteCount']")
     if vote:
-        out["publish_time"] = _clean_text(vote.get("content", ""))
-
-    # 高赞评论：知乎评论区有 data-vote 或 .CommentItem-voteCount
-    comments = []
-    for c in soup.select(".CommentItem, .List-item[data-type='Comment']"):
-        txt = c.get_text(" ", strip=True)
-        # 粗略提取点赞数
-        m = re.search(r"(\d[\d,]*)\s*赞|赞同\s*(\d[\d,]*)", txt)
-        likes = int(m.group(1).replace(",", "")) if m else 0
-        if len(txt) > 15:
-            comments.append({"author": "", "likes": likes, "text": _clean_text(txt[:500])})
-    # 取点赞最高 5 条
-    comments.sort(key=lambda x: x["likes"], reverse=True)
-    out["top_comments"] = comments[:5]
+        out["upvote_count"] = vote.get("content") or _clean_text(vote.get_text())
     return out
 
 
@@ -154,7 +124,6 @@ def parse_weixin(html: str, url: str = "") -> dict:
     if t:
         out["title"] = _clean_text(t.get_text())
 
-    # 正文
     rich = soup.select_one("#js_content") or soup.select_one(".rich_media_content")
     if rich:
         for bad in rich.select("script, style"):
@@ -162,11 +131,9 @@ def parse_weixin(html: str, url: str = "") -> dict:
         paras = [p.get_text(" ", strip=True) for p in rich.find_all(["p", "li", "section"])]
         out["content"] = "\n".join(_clean_text(p) for p in paras if p)
 
-    # 作者 / 时间
     au = soup.select_one("#js_name, .rich_media_meta_text")
     if au:
         out["author"] = _clean_text(au.get_text())
-    # 发布时间藏在 js var
     m = re.search(r'var\s+ct\s*=\s*["\']?(\d+)', html)
     if m:
         try:
@@ -174,7 +141,6 @@ def parse_weixin(html: str, url: str = "") -> dict:
         except Exception:
             pass
 
-    # 公众号文章评论（精选）有时在 #js_comment
     for c in soup.select("#js_comment .comment_item, .appmsg_comment"):
         txt = _clean_text(c.get_text(" ", strip=True))
         if len(txt) > 10:
@@ -203,7 +169,7 @@ def main():
         sys.exit(3)
 
     if platform == "zhihu":
-        data = parse_zhihu(html)
+        data = parse_zhihu(html, args.url)
     elif platform == "weixin":
         data = parse_weixin(html, args.url)
     else:  # pragma: no cover - detect_platform keeps this unreachable
