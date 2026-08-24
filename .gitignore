@@ -1,4 +1,37 @@
+# Python caches
 __pycache__/
 *.py[cod]
+*$py.class
+
+# Test/tool caches
 .pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Ralph/OpenClaw local artifacts
 .ralph/
+.openclaw/
+
+# Generated/downloaded content
+artifacts/
+assets/
+downloads/
+generated/
+notes/
+xhs_media/
+media/
+output/
+outputs/
+*.notes.md
+*.generated.md
+
+# Local auth/session material
+cookies.txt
+*.cookies.txt
+*.cookie
+*.cookies
+storage_state.json
+*.storage_state.json

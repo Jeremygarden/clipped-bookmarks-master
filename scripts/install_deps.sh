@@ -2,27 +2,72 @@
 # 安装收藏夹整理师所需的依赖：yt-dlp（当前支持媒体源下载）、语音识别相关
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REQUIREMENTS_FILE="${REQUIREMENTS_FILE:-${REPO_ROOT}/requirements.txt}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+PIP_ARGS=()
+INSTALL_WHISPER="${INSTALL_WHISPER:-0}"
+INTERACTIVE=1
+
+usage() {
+  cat <<'EOF'
+Usage: bash scripts/install_deps.sh [--non-interactive] [--with-whisper] [--user]
+
+Installs Python dependencies from requirements.txt without falling back to sudo.
+
+Options:
+  --non-interactive  Do not prompt; skip optional whisper unless --with-whisper is set
+  --with-whisper     Also install openai-whisper for local transcription
+  --user             Pass --user to pip
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --non-interactive|-y|--yes)
+      INTERACTIVE=0
+      shift
+      ;;
+    --with-whisper)
+      INSTALL_WHISPER=1
+      shift
+      ;;
+    --user)
+      PIP_ARGS+=(--user)
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "[错误] 未知参数: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
 echo "==> 安装收藏夹整理师依赖..."
 
-# 1. yt-dlp（视频/音频下载，用于小红书等当前支持媒体源）
-if command -v yt-dlp >/dev/null 2>&1; then
-  echo "[ok] yt-dlp 已存在，尝试升级"
-  pip3 install -U yt-dlp >/dev/null 2>&1 || sudo pip3 install -U yt-dlp >/dev/null 2>&1 || true
-else
-  echo "[+] 安装 yt-dlp"
-  pip3 install -U yt-dlp >/dev/null 2>&1 || sudo pip3 install -U yt-dlp
+if [[ ! -f "$REQUIREMENTS_FILE" ]]; then
+  echo "[错误] 找不到依赖文件: $REQUIREMENTS_FILE" >&2
+  exit 2
 fi
 
-# 2. Python 抓取/解析依赖
-echo "[+] 安装 Python 依赖 (requests, beautifulsoup4, trafilatura)"
-pip3 install -U requests beautifulsoup4 trafilatura >/dev/null 2>&1 \
-  || sudo pip3 install -U requests beautifulsoup4 trafilatura
+"$PYTHON_BIN" -m pip install -U "${PIP_ARGS[@]}" -r "$REQUIREMENTS_FILE"
 
-# 3. 语音识别（可选，local 模式需要）。默认不强制安装（体积大），按需提示。
-echo "[?] 本地语音识别(whisper) 体积较大，是否安装？[y/N]"
-read -r REPLY
-if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-  pip3 install -U openai-whisper >/dev/null 2>&1 || sudo pip3 install -U openai-whisper
+if [[ "$INSTALL_WHISPER" != "1" && "$INTERACTIVE" == "1" ]]; then
+  echo "[?] 本地语音识别(openai-whisper) 体积较大，是否安装？[y/N]"
+  read -r REPLY
+  if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+    INSTALL_WHISPER=1
+  fi
+fi
+
+if [[ "$INSTALL_WHISPER" == "1" ]]; then
+  "$PYTHON_BIN" -m pip install -U "${PIP_ARGS[@]}" openai-whisper
   echo "[ok] openai-whisper 已安装（local 模式可用）"
 else
   echo "[i] 跳过 whisper。视频转写请使用 --api openai（需配置 OPENAI_API_KEY）。"
@@ -30,7 +75,7 @@ fi
 
 # 4. ffmpeg 检查
 if ! command -v ffmpeg >/dev/null 2>&1; then
-  echo "[!] 未检测到 ffmpeg，音频分离需要它。请运行: apt-get install -y ffmpeg"
+  echo "[!] 未检测到 ffmpeg，音频分离需要它。请安装 ffmpeg（例如 apt-get install -y ffmpeg）。"
 else
   echo "[ok] ffmpeg 已就绪"
 fi
