@@ -10,6 +10,12 @@ ZHIHU_ANSWER_SAMPLE = "https://www.zhihu.com/question/123456/answer/789012"
 ZHIHU_ARTICLE_SAMPLE = "https://zhuanlan.zhihu.com/p/123456"
 
 
+def test_routes_zhihu_answer_sample():
+    item = route_url("https://www.zhihu.com/question/633780178/answer/1997868452766058023")
+    assert item.platform == Platform.ZHIHU
+    assert item.source_type == SourceType.ZHIHU_ANSWER
+
+
 def test_routes_wechat_article_sample():
     item = route_url(WECHAT_SAMPLE)
     assert item.platform == Platform.WECHAT_OFFICIAL_ACCOUNT
@@ -23,6 +29,13 @@ def test_routes_xhs_short_link_sample_as_note_requiring_expansion():
         assert item.platform == Platform.XIAOHONGSHU
         assert item.source_type == SourceType.XIAOHONGSHU_NOTE
         assert item.metadata["requires_expansion"] is True
+
+
+def test_routes_xhslink_com_short_link_as_note_requiring_expansion():
+    item = route_url("https://xhslink.com/a/abc")
+    assert item.platform == Platform.XIAOHONGSHU
+    assert item.source_type == SourceType.XIAOHONGSHU_NOTE
+    assert item.metadata["requires_expansion"] is True
 
 
 def test_routes_xhs_collection_sample():
@@ -127,6 +140,7 @@ def test_cli_obsidian_requires_confirmation(tmp_path: Path, capsys):
     assert list((tmp_path / "Clipped Bookmarks").glob("*.md"))
 
 
+
 def test_supported_platform_registry_matches_active_scope():
     from clipped_bookmarks.platforms import ACTIVE_PLATFORM_SCOPE, supported_platforms
 
@@ -176,3 +190,14 @@ def test_descriptor_for_source_type_maps_active_core_sources():
     assert descriptor_for_source_type(SourceType.ZHIHU_ANSWER).platform == Platform.ZHIHU
     assert descriptor_for_source_type("wechat_channels_file").platform == Platform.WECHAT_CHANNELS
     assert descriptor_for_source_type("unknown") is None
+
+
+
+def test_router_host_matching_rejects_xiaohongshu_suffix_spoof():
+    for url in ["https://notxiaohongshu.com/explore/66abcdef000000001f03abcd", "https://notxhslink.com/a/abc"]:
+        try:
+            route_url(url)
+        except UnsupportedPlatformError:
+            pass
+        else:
+            raise AssertionError(f"spoofed host should be unsupported: {url}")

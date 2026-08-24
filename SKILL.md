@@ -100,7 +100,7 @@ updated: "2026-08-24"
 
 | 脚本 | 作用 | 用法 |
 |------|------|------|
-| `fetch_text.py` | 抓取文字类正文并初步提取 | `python3 scripts/fetch_text.py <url> [--out raw.json]` |
+| `fetch_text.py` | 抓取文字/图文类正文并初步提取 | `python3 scripts/fetch_text.py <url> [--out raw.json]` |
 | `download_media.sh` | 下载受支持视频/音频 | `bash scripts/download_media.sh <url> [--dir ./downloads]` |
 | `extract_audio.sh` | 视频 → 音频 mp3 | `bash scripts/extract_audio.sh <video_file>` |
 | `transcribe.sh` | 音频 → 逐字稿（带时间戳） | `bash scripts/transcribe.sh <audio_file> [--api openai|local]` |

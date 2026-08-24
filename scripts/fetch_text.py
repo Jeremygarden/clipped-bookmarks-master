@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-fetch_text.py - 收藏夹整理师 · 文字类抓取
-抓取知乎 / 微信公众号等文字内容，初步提取正文与高赞评论。
+fetch_text.py - 收藏夹整理师 · 文字类/图文类抓取
+抓取知乎 / 微信公众号 / 小红书图文等内容，初步提取正文与高信号补充。
 """
 import argparse
 import json
@@ -47,20 +47,24 @@ HEADERS = {
 
 
 def detect_platform(url: str) -> str:
-    """Return the fetch_text parser key for supported text URLs.
-
-    Scope is delegated to the shared router so this script stays aligned with the
-    product core. Only text-like sources are accepted here: WeChat Official
-    Account articles and Zhihu answers/articles.
-    """
+    """Return the parser key for supported fetch/extraction URLs."""
 
     item = route_url(url)
-    if item.platform == Platform.ZHIHU and item.source_type in {SourceType.ZHIHU_QUESTION, SourceType.ZHIHU_ANSWER, SourceType.ZHIHU_ARTICLE}:
+    if item.platform == Platform.ZHIHU and item.source_type in {
+        SourceType.ZHIHU_QUESTION,
+        SourceType.ZHIHU_ANSWER,
+        SourceType.ZHIHU_ARTICLE,
+    }:
         return "zhihu"
     if item.platform == Platform.WECHAT_OFFICIAL_ACCOUNT and item.source_type == SourceType.WECHAT_ARTICLE:
         return "weixin"
+    if item.platform == Platform.XIAOHONGSHU and item.source_type in {
+        SourceType.XIAOHONGSHU_NOTE,
+        SourceType.XIAOHONGSHU_COLLECTION,
+    }:
+        return "xiaohongshu"
     raise UnsupportedPlatformError(
-        f"fetch_text only supports Zhihu and WeChat official account article URLs; "
+        f"fetch_text supports Zhihu, WeChat official account articles, and Xiaohongshu note/collection URLs; "
         f"got {item.platform.value}/{item.source_type.value}"
     )
 
@@ -109,6 +113,49 @@ def parse_zhihu(html: str, url: str = "") -> dict:
     if vote:
         out["upvote_count"] = vote.get("content") or _clean_text(vote.get_text())
     return out
+
+
+# ---------------- 小红书 ----------------
+def parse_xiaohongshu(url: str, html: str) -> dict:
+    from clipped_bookmarks.extractors.xiaohongshu import (
+        detect_access_wall,
+        extract_collection_id,
+        extract_note_id,
+        extract_note_urls_from_html,
+        is_collection_url,
+        normalize_xhs_url,
+        parse_xhs_html,
+    )
+
+    final_url = normalize_xhs_url(url)
+    parsed = parse_xhs_html(html)
+    wall = detect_access_wall(html)
+    note_urls = extract_note_urls_from_html(html) if is_collection_url(final_url) else []
+    content = parsed["description"] or parsed["title"] or ""
+    if note_urls:
+        content = (content + "\n" if content else "") + "\n".join(note_urls)
+    status = "error" if wall else "fetched"
+    return {
+        "platform": "xiaohongshu",
+        "title": parsed["title"],
+        "author": parsed["author"] or "",
+        "publish_time": "",
+        "content": content,
+        "top_comments": [],
+        "raw_html_len": len(html),
+        "tags": parsed["tags"],
+        "assets": parsed["image_assets"] + parsed["video_assets"],
+        "note_urls": note_urls,
+        "status": status,
+        "errors": [wall] if wall else [],
+        "metadata": {
+            "canonical_url": final_url,
+            "source_type": "xiaohongshu_collection" if is_collection_url(final_url) else "xiaohongshu_note",
+            "note_id": extract_note_id(final_url),
+            "collection_id": extract_collection_id(final_url),
+            "requires_login": bool(wall),
+        },
+    }
 
 
 # ---------------- 微信公众号 ----------------
@@ -172,6 +219,8 @@ def main():
         data = parse_zhihu(html, args.url)
     elif platform == "weixin":
         data = parse_weixin(html, args.url)
+    elif platform == "xiaohongshu":
+        data = parse_xiaohongshu(args.url, html)
     else:  # pragma: no cover - detect_platform keeps this unreachable
         raise UnsupportedPlatformError(f"Unsupported fetch_text platform: {platform}")
 

@@ -16,7 +16,7 @@ def route_url(source: str) -> BookmarkItem:
 
     Supported core sources are limited to:
     - WeChat Official Account articles (mp.weixin.qq.com/s/...)
-    - Xiaohongshu note links (xhslink.cn/xhslink.com, xiaohongshu.com/explore|discovery/item)
+    - Xiaohongshu note links (xhslink.cn/xhslink.com, xiaohongshu.com/explore|discovery/item|search_result)
     - Xiaohongshu collection item links (xiaohongshu.com/collection/item/...)
     - WeChat Channels local uploaded files or channel video links
     - Zhihu questions, answers, and Zhuanlan articles
@@ -50,7 +50,7 @@ def route_url(source: str) -> BookmarkItem:
             metadata={"input_kind": "url"},
         )
 
-    if host.endswith(("xhslink.cn", "xhslink.com")):
+    if _host_matches(host, "xhslink.cn") or _host_matches(host, "xhslink.com"):
         return BookmarkItem(
             url=source,
             platform=Platform.XIAOHONGSHU,
@@ -58,7 +58,7 @@ def route_url(source: str) -> BookmarkItem:
             metadata={"input_kind": "short_url", "requires_expansion": True},
         )
 
-    if host.endswith("xiaohongshu.com"):
+    if _host_matches(host, "xiaohongshu.com"):
         if path.startswith("/collection/item/"):
             return BookmarkItem(
                 url=source,
@@ -66,7 +66,7 @@ def route_url(source: str) -> BookmarkItem:
                 source_type=SourceType.XIAOHONGSHU_COLLECTION,
                 metadata={"input_kind": "url"},
             )
-        if path.startswith(("/explore/", "/discovery/item/", "/user/profile/")):
+        if path.startswith(("/explore/", "/discovery/item/", "/search_result/", "/user/profile/")):
             return BookmarkItem(
                 url=source,
                 platform=Platform.XIAOHONGSHU,
@@ -82,7 +82,7 @@ def route_url(source: str) -> BookmarkItem:
             metadata={"input_kind": "url"},
         )
 
-    if host.endswith("zhihu.com"):
+    if _host_matches(host, "zhihu.com"):
         if path.startswith("/question/") and "/answer/" in path:
             return BookmarkItem(
                 url=source,
@@ -106,6 +106,12 @@ def route_url(source: str) -> BookmarkItem:
             )
 
     raise UnsupportedPlatformError(f"Unsupported source: {source}")
+
+
+def _host_matches(host: str, domain: str) -> bool:
+    host = host.lower().rstrip(".")
+    domain = domain.lower().rstrip(".")
+    return host == domain or host.endswith(f".{domain}")
 
 
 def _raise_if_unsupported(lower: str, source: str) -> None:

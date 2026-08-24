@@ -33,7 +33,7 @@ The main branch is the product line. Platform-specific extractors feed a standar
 - `clipped_bookmarks.renderers.markdown.render_markdown(item)` — renders Markdown with YAML frontmatter for downstream note systems.
 - `clipped_bookmarks.renderers.obsidian` — Obsidian export skeleton using `ObsidianExportConfig`; writing to a vault requires explicit `confirm=True`.
 - `clipped_bookmarks.cli` — minimal CLI for route → Markdown output and optional confirmed Obsidian export.
-- `scripts/fetch_text.py` — text fetch/extraction entrypoint for WeChat Official Accounts and Zhihu.
+- `scripts/fetch_text.py` — fetch/extraction entrypoint for WeChat Official Accounts, Zhihu, and Xiaohongshu note/collection HTML.
 - `scripts/batch_process.sh` — batch router that uses the same core scope instead of ad-hoc URL matching.
 - `references/core_handoff.md` — concise contract for platform-agent handoff boundaries and active platform scope.
 

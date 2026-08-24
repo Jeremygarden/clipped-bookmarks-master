@@ -1,1 +1,1 @@
-"""Platform-specific text extractors."""
+"""Platform-specific extractors for clipped-bookmarks-master."""
