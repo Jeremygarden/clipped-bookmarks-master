@@ -13,14 +13,19 @@ htmlcov/
 
 # Ralph/OpenClaw local artifacts
 .ralph/
+ralph/
+.ralph-cache/
+openclaw/
 .openclaw/
 
 # Generated/downloaded content
 artifacts/
 assets/
+assets/generated/
 downloads/
 generated/
 notes/
+bookmarks_notes/
 xhs_media/
 media/
 output/

@@ -9,17 +9,22 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 PIP_ARGS=()
 INSTALL_WHISPER="${INSTALL_WHISPER:-0}"
 INTERACTIVE=1
+if [[ "${CI:-}" == "true" || "${CI:-}" == "1" ]]; then
+  INTERACTIVE=0
+fi
 
 usage() {
   cat <<'EOF'
 Usage: bash scripts/install_deps.sh [--non-interactive] [--with-whisper] [--user]
 
 Installs Python dependencies from requirements.txt without falling back to sudo.
+By default it installs into the active virtualenv, or uses pip --user when no
+virtualenv is active. Set CI=true or pass --yes/--non-interactive to skip prompts.
 
 Options:
   --non-interactive  Do not prompt; skip optional whisper unless --with-whisper is set
   --with-whisper     Also install openai-whisper for local transcription
-  --user             Pass --user to pip
+  --user             Pass --user to pip (default outside a virtualenv)
 EOF
 }
 
@@ -54,6 +59,12 @@ echo "==> 安装收藏夹整理师依赖..."
 if [[ ! -f "$REQUIREMENTS_FILE" ]]; then
   echo "[错误] 找不到依赖文件: $REQUIREMENTS_FILE" >&2
   exit 2
+fi
+
+if [[ "${#PIP_ARGS[@]}" -eq 0 && -z "${VIRTUAL_ENV:-}" ]]; then
+  PIP_ARGS+=(--user)
+  echo "[i] 未检测到虚拟环境，使用: $PYTHON_BIN -m pip install --user"
+  echo "[i] 如需隔离依赖，可先运行: python3 -m venv .venv && source .venv/bin/activate"
 fi
 
 "$PYTHON_BIN" -m pip install -U "${PIP_ARGS[@]}" -r "$REQUIREMENTS_FILE"
