@@ -1,0 +1,2 @@
+00:00 Speaker A: Transcript fixture opens with context.
+00:05 Speaker B: It continues with a concise second point.
