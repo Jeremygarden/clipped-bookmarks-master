@@ -4,6 +4,28 @@
 # 用法: bash scripts/batch_process.sh links.txt [--out ./bookmarks_notes] [--cookies cookies.txt]
 set -euo pipefail
 
+# Prefer the Python knowledge-base batch processor when available. It creates
+# index.md, failed.md, sources/, platform folders, topics/, batches/, assets/,
+# and per-batch success/failure/all-notes summaries.
+if [[ "${CBM_LEGACY_BATCH:-}" != "1" ]]; then
+  LINKS_ARG=""
+  OUT_ARG="./bookmarks_notes"
+  args=("$@")
+  i=0
+  while [[ $i -lt ${#args[@]} ]]; do
+    case "${args[$i]}" in
+      --out) i=$((i+1)); OUT_ARG="${args[$i]}";;
+      --cookies) i=$((i+1));;
+      -*) ;;
+      *) [[ -z "$LINKS_ARG" ]] && LINKS_ARG="${args[$i]}";;
+    esac
+    i=$((i+1))
+  done
+  if [[ -n "$LINKS_ARG" && -f "$LINKS_ARG" ]]; then
+    exec python3 -m clipped_bookmarks.cli process-batch "$LINKS_ARG" --out "$OUT_ARG"
+  fi
+fi
+
 LINKS=""
 OUT="./bookmarks_notes"
 COOKIES=""
@@ -22,7 +44,7 @@ if [[ -z "$LINKS" || ! -f "$LINKS" ]]; then
 fi
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p "$OUT"/zhihu "$OUT"/weixin "$OUT"/xiaohongshu "$OUT"/wechat_channels
+mkdir -p "$OUT"/sources "$OUT"/weixin "$OUT"/zhihu "$OUT"/xiaohongshu "$OUT"/topics "$OUT"/batches "$OUT"/assets
 
 count=0
 while IFS= read -r line; do
