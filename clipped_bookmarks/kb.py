@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 import re
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .renderers.markdown import render_markdown
 from .router import route_url
@@ -51,7 +51,14 @@ def write_item_note(item: BookmarkItem, out_dir: Path, *, overwrite: bool = True
     return path
 
 
-def process_batch(sources: Iterable[str], out_dir: Path, *, batch_id: str | None = None, overwrite: bool = True) -> BatchResult:
+def process_batch(
+    sources: Iterable[str],
+    out_dir: Path,
+    *,
+    batch_id: str | None = None,
+    overwrite: bool = True,
+    processor: Callable[[str], BookmarkItem] = route_url,
+) -> BatchResult:
     ensure_kb_layout(out_dir)
     batch_id = batch_id or datetime.now(timezone.utc).strftime("batch-%Y%m%dT%H%M%SZ")
     result = BatchResult(batch_id=batch_id, out_dir=out_dir)
@@ -60,7 +67,7 @@ def process_batch(sources: Iterable[str], out_dir: Path, *, batch_id: str | None
         if not source or source.startswith("#"):
             continue
         try:
-            item = route_url(source)
+            item = processor(source)
             path = write_item_note(item, out_dir, overwrite=overwrite)
             result.successes.append(path)
         except Exception as exc:  # batch output should capture individual failures

@@ -11,15 +11,11 @@ from urllib.parse import urlparse
 from .extractors.wechat_article import extract_wechat_article
 from .extractors.wechat_video import WeChatVideoExtractor, is_local_video_file
 from .extractors.zhihu import extract_zhihu
+from .kb import process_batch
 from .renderers.markdown import render_markdown
 from .renderers.obsidian import ObsidianExportConfig, export_to_obsidian
 from .router import route_url
-<<<<<<< HEAD
 from .schema import BookmarkAsset, BookmarkItem, Platform, SourceType, UnsupportedPlatformError
-=======
-from .schema import UnsupportedPlatformError
-from .kb import process_batch
->>>>>>> 0e42546 (Ralph iteration 3: work in progress)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,7 +29,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-<<<<<<< HEAD
 def _build_process_url_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Process one URL or local fixture/file into Markdown")
     parser.add_argument("source", help="Supported URL, local HTML/text fixture, or media/transcript file")
@@ -43,10 +38,11 @@ def _build_process_url_parser() -> argparse.ArgumentParser:
 
 
 def _build_process_batch_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Process newline-delimited sources into Markdown")
+    parser = argparse.ArgumentParser(description="Process newline-delimited sources into knowledge-base Markdown layout")
     parser.add_argument("links", type=Path, help="Text file containing one source per line")
-    parser.add_argument("--out", type=Path, required=True, help="Output directory for Markdown notes")
-    parser.add_argument("--overwrite", action="store_true", help="Allow overwriting existing notes")
+    parser.add_argument("--out", type=Path, required=True, help="Knowledge-base output directory")
+    parser.add_argument("--batch-id", help="Stable batch id for reproducible summaries")
+    parser.add_argument("--overwrite", action="store_true", default=True, help="Overwrite existing notes")
     return parser
 
 
@@ -57,33 +53,25 @@ def main(argv: list[str] | None = None) -> int:
         return _process_url_command(args.source, args.out, overwrite=args.overwrite)
     if argv and argv[0] == "process-batch":
         args = _build_process_batch_parser().parse_args(argv[1:])
-        return _process_batch_command(args.links, args.out, overwrite=args.overwrite)
-=======
-def build_batch_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Process bookmark URLs into a knowledge-base layout.")
-    parser.add_argument("links", type=Path, help="Text file with one source URL/path per line")
-    parser.add_argument("--out", type=Path, default=Path("bookmarks_notes"), help="Knowledge-base output directory")
-    parser.add_argument("--batch-id", help="Stable batch id for reproducible summaries")
-    parser.add_argument("--overwrite", action="store_true", default=True, help="Overwrite existing generated notes")
-    return parser
-
-def main(argv: list[str] | None = None) -> int:
-    argv = list(argv) if argv is not None else sys.argv[1:]
-    if argv and argv[0] == "process-batch":
-        args = build_batch_parser().parse_args(argv[1:])
         if not args.links.exists():
-            print(f"error: links file not found: {args.links}", file=sys.stderr)
-            return 2
-        result = process_batch(args.links.read_text(encoding="utf-8").splitlines(), args.out, batch_id=args.batch_id, overwrite=args.overwrite)
+            _write_failure(args.out, str(args.links), f"links file not found: {args.links}")
+            return 1
+        result = process_batch(
+            args.links.read_text(encoding="utf-8").splitlines(),
+            args.out,
+            batch_id=args.batch_id,
+            overwrite=args.overwrite,
+            processor=process_source,
+        )
         print(f"batch: {result.summary_path}")
         print(f"successes: {len(result.successes)}")
         print(f"failures: {len(result.failures)}")
         return 1 if result.failures else 0
->>>>>>> 0e42546 (Ralph iteration 3: work in progress)
 
     parser = build_parser()
     args = parser.parse_args(argv)
     return _legacy_render(args)
+
 
 def _legacy_render(args: argparse.Namespace) -> int:
     try:
@@ -111,20 +99,6 @@ def _legacy_render(args: argparse.Namespace) -> int:
             return 4
         print(f"exported: {path}", file=sys.stderr)
     return 0
-
-
-def _process_batch_command(links: Path, out_dir: Path, *, overwrite: bool = False) -> int:
-    if not links.exists():
-        _write_failure(out_dir, str(links), f"links file not found: {links}")
-        return 1
-    rc = 0
-    for line in links.read_text(encoding="utf-8").splitlines():
-        source = line.strip()
-        if not source or source.startswith("#"):
-            continue
-        if _process_url_command(source, out_dir, overwrite=overwrite) != 0:
-            rc = 1
-    return rc
 
 
 def _process_url_command(source: str, out_dir: Path, *, overwrite: bool = False) -> int:
